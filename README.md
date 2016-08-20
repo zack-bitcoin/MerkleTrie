@@ -5,6 +5,7 @@ It remembers fixed size pieces of data. You can choose the size of data in the .
 
 Example usage:
 
+```
 1> Key = "key".
 "key"
 2> Value  = <<27,27>>.
@@ -36,3 +37,4 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,...>>}]}
 6> verify:proof(A, Key, Value, B).
 true
+```
