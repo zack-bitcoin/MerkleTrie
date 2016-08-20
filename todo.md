@@ -5,3 +5,6 @@ The way to do this is to have 2 types of stems. One stem has 16 pointers and 1 s
 The ethereum team describes it here:
 
 https://github.com/ethereum/wiki/wiki/Patricia-Tree
+
+
+Currently the stems and leaves are stored as fixed sized binary on the hard drive. But most stems are mostly empty. We could save a lot of space if we compress stems before writing them on the hard drive.
