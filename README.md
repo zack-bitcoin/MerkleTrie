@@ -3,6 +3,13 @@ Merkle Trie
 the goal of this project is to have a merkel tree on the hard drive for a blockchain.
 It remembers fixed size pieces of data. You can choose the size of data in the .app file when you use rebar to include this library.
 
+Install process:
+
+First you need erlang installed. Then to install this software do: ```sh install.sh```
+
+Now to run the software simply: ```sh start.sh```
+
+
 Example usage:
 
 ```
