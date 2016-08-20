@@ -1,12 +1,9 @@
+%The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
+
 -module(stem).
 -export([test/0,empty_root/0,serialize/1,deserialize/1,type/2,hash/1,pointers/1,types/1,hashes/1,pointer/2,new/4,add/5,new_empty/0]).
--record(stem, {types = empty_tuple(), pointers = empty_tuple(), hashes = empty_tuple_bytes()}).
+-record(stem, {types = empty_tuple(), pointers = empty_tuple(), hashes = empty_hashes()}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
-empty_tuple_bytes() -> 
-    {<<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>}.
 add(S, N, T, P, H) ->
     M = N+1,
     Ty = S#stem.types,
@@ -22,11 +19,6 @@ new(M, T, P, H) ->
     %T is the type, P is the pointer, H is the Hash
     S = new_empty(),
     add(S, M, T, P, H).
-%N = M+1,
-%T2 = setelement(N, empty_tuple(), T),
-%P2 = setelement(N, empty_tuple(), P),
-%H2 = setelement(N, empty_tuple_bytes(), H),
-%#stem{types = T2, pointers = P2, hashes = H2}.
 pointers(R) -> R#stem.pointers.
 types(R) -> R#stem.types.
 hashes(R) -> R#stem.hashes.
@@ -66,10 +58,9 @@ empty_hashes() ->
      <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
      <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
      <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>}.
-    
 empty_root() ->
-    P = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    T = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    P = empty_tuple(),
+    T = empty_tuple(),
     H = empty_hashes(),
     S = #stem{types = T, pointers = P, hashes = H},
     serialize(S).
