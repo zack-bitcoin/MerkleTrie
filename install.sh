@@ -20,5 +20,5 @@ fi
 
 sh clean.sh #this deletes the database so every time we re-start, we have 0 blocks again. only needed during testing.
 
-echo "Successfully compiled Flying Fox".
+echo "Successfully compiled MerkleTrie".
 
