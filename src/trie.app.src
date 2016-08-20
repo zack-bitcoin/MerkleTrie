@@ -1,0 +1,12 @@
+{application, trie,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { trie_app, [2]}},
+  {env, []}
+ ]}.
