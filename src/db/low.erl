@@ -1,5 +1,5 @@
 -module(low).
--export([test/0,word/1,write_leaf/1,write_stem/1,read_leaf/1,read_stem/1,delete_thing/2,highest/1]).
+-export([word/1,write_leaf/1,write_stem/1,read_leaf/1,read_stem/1,delete_thing/2,highest/1]).
 
 word(Id) -> gen_server:call({global, Id}, word).
 highest(Id) -> gen_server:call({global, Id}, highest).
@@ -18,7 +18,11 @@ read_stem(A) -> read_thing(A,stem_db).
 read_thing(A, ID) -> 
     case gen_server:call({global, ID}, {read, A}) of
 	{error, _} -> error;
-	X -> stem:deserialize(X)
+	X -> 
+	    case ID of
+		stem_db -> stem:deserialize(X);
+		leaf_db -> X
+	    end
     end.
 delete_thing(A, leaf_db) -> 
     gen_server:cast({global, leaf_db}, {delete, A, leaf_bits});

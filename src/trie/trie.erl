@@ -25,7 +25,6 @@ handle_call({garbage, Keepers}, _From, X) ->
 handle_call(_, _From, X) -> {reply, X, X}.
 
 put(Key, Value, Root) ->
-    true = is_binary(Key),
     gen_server:call(?MODULE, {put, Key, Value, Root}).
 get(Key, Root) -> gen_server:call(?MODULE, {get, Key, Root}).
 garbage(Keepers) -> gen_server:call(?MODULE, {garbage, Keepers}).
