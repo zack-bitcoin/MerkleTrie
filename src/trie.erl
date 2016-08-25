@@ -2,8 +2,8 @@
 -behaviour(gen_server).
 -export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, get/2,put/3,garbage/1]).
 init([X]) ->  
-    ReplaceStem = <<0:(8*(low:word(stem_db)))>>,
-    low:write_stem(ReplaceStem),
+    ReplaceStem = <<0:(8*(dump:word(stem)))>>,
+    dump:put(ReplaceStem, stem),
     {ok, X}.
 start_link(X) -> gen_server:start_link({local, ?MODULE}, ?MODULE, [X], []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.

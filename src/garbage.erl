@@ -2,12 +2,12 @@
 -export([garbage/1]).
 garbage(KeeperRoots) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
-    delete_stuff(0, KeeperStems, stem_db),
-    delete_stuff(0, KeeperLeaves, leaf_db),
+    delete_stuff(0, KeeperStems, stem),
+    delete_stuff(0, KeeperLeaves, leaf),
     ok.
 keepers([]) -> {[], []};
 keepers([R|Roots]) ->
-    case low:read_stem(R) of
+    case dump:get(R, stem) of
 	error -> 
 	    {A, B} = keepers(Roots),
 	    {[R|A],B};
@@ -46,7 +46,7 @@ in_list(X, [X|_]) -> true;
 in_list(_, []) -> false;
 in_list(X, [_|Z]) -> in_list(X, Z).
 delete_stuff(N, Keepers, Id) ->
-    S = low:highest(Id),
+    S = dump:highest(Id),
     delete_stuff(S, N, Keepers, Id).
 delete_stuff(S, N, Keepers, Id) ->
     Bool = in_list(N, Keepers),
@@ -55,6 +55,6 @@ delete_stuff(S, N, Keepers, Id) ->
 	Bool ->
 	    delete_stuff(N+1, Keepers, Id);
 	true ->
-	    low:delete_thing(N, Id),
+	    dump:delete(N, Id),
 	    delete_stuff(N+1, Keepers, Id)
     end.

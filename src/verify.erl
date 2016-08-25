@@ -20,7 +20,7 @@ verify_proof2(<<N:4, _/bitstring>>, Leaf, P) when length(P) == 1->
     Hash == hash:doit(Leaf);
 verify_proof2(<<N:4, Path/bitstring>>, Leaf, [P1|[P2|Proof]]) ->
     Hash = element(N+1, P1),
-    <<H:16, _/bitstring>> = Hash,
+    %<<H:16, _/bitstring>> = Hash,
     case stem:hash(P2) of
 	Hash -> verify_proof2(Path, Leaf, [P2|Proof]);
 	_ -> 
