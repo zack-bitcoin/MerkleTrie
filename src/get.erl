@@ -1,22 +1,25 @@
 -module(get).
 -export([get/2]).
 
-get(Path, Root) -> %returns {RootHash, Value, Proof}
-    %<<X:4, Y:4, _/binary>> = Path,
-    S = dump:get(Root, stem),
+get(Path, Root) -> %returns {RootHash, Path, Value, Proof}
+    S = stem:deserialize(dump:get(Root, stem)),
     H = stem:hash(S),
-    {A, B} = get2(Path, S, [stem:hashes(S)]),
-    <<C:256, D/binary>> = A,
-    {H, <<C:256>>, D, B}.
+    case get2(Path, S, [stem:hashes(S)]) of
+	{A, B} ->
+	    <<Path2:256, Value/binary>> = A,
+	    {H, <<Path2:256>>, Value, B};
+	empty ->
+	    empty
+    end.       
 get2(<<N:4, Path/bitstring>>, Stem, Proof) ->
-    P = stem:pointers(Stem),
-    T = stem:types(Stem),
-    NextType = element(N+1, T),
-    PN = element(N+1, P),
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
     case NextType of
+	0 -> %empty
+	    empty;
 	1 -> %another stem
-	    Next = dump:get(PN, stem), 
+	    Next = stem:deserialize(dump:get(PN, stem)), 
 	    get2(Path, Next, [stem:hashes(Next)|Proof]);
 	2 -> %leaf
-	    {dump:read_leaf(PN, leaf), Proof}
+	    {dump:get(PN, leaf), Proof}
     end.

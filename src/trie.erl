@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, get/2,put/3,garbage/1]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, get/2,put/3,garbage/1,garbage_leaves/1]).
 init([X]) ->  
     ReplaceStem = <<0:(8*(dump:word(stem)))>>,
     dump:put(ReplaceStem, stem),
@@ -22,10 +22,14 @@ handle_call({get, Key, Root}, _From, Size) ->
 handle_call({garbage, Keepers}, _From, X) -> 
     garbage:garbage(Keepers),
     {reply, ok, X};
+handle_call({garbage_leaves, KLS}, _From, X) -> 
+    garbage:garbage_leaves(KLS),
+    {reply, ok, X};
 handle_call(_, _From, X) -> {reply, X, X}.
 
 put(Key, Value, Root) ->
     gen_server:call(?MODULE, {put, Key, Value, Root}).
 get(Key, Root) -> gen_server:call(?MODULE, {get, Key, Root}).
 garbage(Keepers) -> gen_server:call(?MODULE, {garbage, Keepers}).
-
+garbage_leaves(KLS) ->
+    gen_server:call(?MODULE, {garbage_leaves, KLS}).

@@ -1,10 +1,10 @@
 -module(store).
 -export([store/3]).
 
-store(P, Value, Root) -> %returns {RootHash, RootPointer, Proof}
+store(P, Value, Root) when is_binary(P)-> %returns {RootHash, RootPointer, Proof}
     %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
     Leaf = <<P/binary, Value/binary>>,
-    LPointer = dump:write(Leaf, leaf),
+    LPointer = dump:put(Leaf, leaf),
     LH = hash:doit(Leaf),
     case find_branch(P, 0, Value, Root, []) of
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
@@ -13,13 +13,16 @@ store(P, Value, Root) -> %returns {RootHash, RootPointer, Proof}
 	    store_branch(H++Branch, P, 2, LPointer, LH);
 	Branch -> %overwrite
 	    store_branch(Branch, P, 2, LPointer, LH)
-    end.
+    end;
+store(P, Value, Root) -> 
+    P2 = stem:serialize(P),
+    store(P2, Value, Root).
 find_branch(Path, N, Value, Parent, Trail) ->
     %gather the branch as it currently looks.
     NN = 4*N,
     <<_:NN, A:4, _/bitstring>> = Path,
     M = N+1,
-    R = dump:get(Parent, stem),
+    R = stem:deserialize(dump:get(Parent, stem)),
     Pointer = stem:pointer(A+1, R),
     RP = [R|Trail],
     case stem:type(A+1, R) of
@@ -29,7 +32,7 @@ find_branch(Path, N, Value, Parent, Trail) ->
 	    find_branch(Path, M, Value, Pointer, RP);
 	2 ->%a leaf. 
 	    %io:fwrite("a leaf\n"),
-	    L = dump:put(Pointer, leaf),
+	    L = dump:get(Pointer, leaf),
 	    case hash:doit(L) of
 		Path -> %overwrite
 		    RP;
@@ -46,7 +49,7 @@ store_branch([B|Branch], Path, Type, Pointer, Hash) ->
     NN = 4*S,
     <<_:NN, A:4, _/bitstring>> = Path,
     S1 = stem:add(B, A, Type, Pointer, Hash),
-    Loc = dump:put(S1, stem),
+    Loc = dump:put(stem:serialize(S1), stem),
     SH = stem:hash(S1),
     store_branch(Branch, Path, 1, Loc, SH).
 more_branch(Leaf, LP2, Leaf2, B) ->

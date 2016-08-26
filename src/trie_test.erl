@@ -1,11 +1,13 @@
--module(test).
--export([test/0,test1/0,test2/0,test3/0,test4/0]).
+-module(trie_test).
+-export([test/0]).
 
 test() ->
+    test5(),
     test1(),
     test2(),
     test3(),
-    test4().
+    test4(),
+    test5().
 
 test1() ->
     Nib1 = 4,
@@ -69,6 +71,37 @@ test1() ->
     {PP4,L3,L3b,PP5} = get:get(L3, Loc7),
     true = verify:proof(PP4,L3c,PP5),
     ok.
+test5() ->
+    Root0 = 0,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    V3 = <<1,3>>,
+    L1 = <<0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    L2 = <<0,16,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    L3 = <<0,1,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    {_, Root1, _} = store:store(L1, V1, Root0),
+    {_, Root2, _} = store:store(L2, V2, Root1),
+    {_, Root3, _} = store:store(L3, V3, Root2),
+    X = [{L1, Root3}],
+    garbage:garbage_leaves(X),
+    {Hash, L1, Proof} = get:get(L1, Root3),
+    verify:proof(Hash, L1, V1, Proof),
+    empty = get:get(L2, Root3),
+    empty = get:get(L3, Root3),
+    {_, Root3, _} = store:store(L3, V3, Root3),
+    {_, Root4, _} = store:store(L3, V2, Root3),
+    ok.
+    
+    
 
 test2() ->
     Loc = 0,

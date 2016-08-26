@@ -1,13 +1,36 @@
 -module(garbage).
--export([garbage/1]).
+-export([garbage/1, garbage_leaves/1]).
+garbage_leaves(KeeperLeaves) ->
+    KeeperStems = keepers_backwards(KeeperLeaves),
+    delete_stuff(0, KeeperStems, stem),
+    delete_stuff(0, KeeperLeaves, leaf),
+    ok.
 garbage(KeeperRoots) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
     delete_stuff(0, KeeperStems, stem),
     delete_stuff(0, KeeperLeaves, leaf),
     ok.
+keepers_backwards(X) -> keepers_backwards(X, []).
+keepers_backwards([], X) -> X;
+keepers_backwards([{Path, Root}|Leaves], X) -> 
+    S = stem:deserialize(dump:get(Root, stem)),
+    Keepers = kb2(Path, S, [Root]),
+    keepers_backwards(Leaves, X++Keepers).
+kb2(<<N:4, Path/bitstring>>, Stem, Keepers) ->
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
+    case NextType of
+	1 -> %another stem
+	    Next = stem:deserialize(dump:get(PN, stem)), 
+	    kb2(Path, Next, [PN|Keepers]);
+	2 -> %leaf
+	    Keepers
+    end.
+    
+
 keepers([]) -> {[], []};
 keepers([R|Roots]) ->
-    case dump:get(R, stem) of
+    case stem:deserialize(dump:get(R, stem)) of
 	error -> 
 	    {A, B} = keepers(Roots),
 	    {[R|A],B};
@@ -53,8 +76,8 @@ delete_stuff(S, N, Keepers, Id) ->
     if
 	N>=S -> ok;
 	Bool ->
-	    delete_stuff(N+1, Keepers, Id);
+	    delete_stuff(S, N+1, Keepers, Id);
 	true ->
 	    dump:delete(N, Id),
-	    delete_stuff(N+1, Keepers, Id)
+	    delete_stuff(S, N+1, Keepers, Id)
     end.
