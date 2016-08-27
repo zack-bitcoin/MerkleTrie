@@ -2,7 +2,6 @@
 -export([test/0]).
 
 test() ->
-    test5(),
     test1(),
     test2(),
     test3(),
@@ -114,7 +113,7 @@ test2() ->
 
 test3() -> 
     Loc = 0,
-    Times = 1000,
+    Times = 10000,
     NewLoc = test3a(0, Times, Loc),
     test3b(0, Times, NewLoc).
 test3a(N, N, L) -> L;

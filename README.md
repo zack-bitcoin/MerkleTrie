@@ -44,4 +44,6 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,...>>}]}
 6> verify:proof(A, Key, Value, B).
 true
+7> trie:garbage([Root1]). %this deletes everything that isn't a branch from one of the roots in the list.
+8> trie:garbage_leaves([{hash:doit(Key), Root1}]). %this deletes everything that isn't a ancestor of one of the leaves in the list.
 ```

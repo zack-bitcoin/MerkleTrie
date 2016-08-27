@@ -2,8 +2,8 @@
 -export([garbage/1, garbage_leaves/1]).
 garbage_leaves(KeeperLeaves) ->
     KeeperStems = keepers_backwards(KeeperLeaves),
-    delete_stuff(0, KeeperStems, stem),
     delete_stuff(0, KeeperLeaves, leaf),
+    delete_stuff(0, KeeperStems, stem),
     ok.
 garbage(KeeperRoots) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
@@ -15,14 +15,14 @@ keepers_backwards([], X) -> X;
 keepers_backwards([{Path, Root}|Leaves], X) -> 
     S = stem:deserialize(dump:get(Root, stem)),
     Keepers = kb2(Path, S, [Root]),
-    keepers_backwards(Leaves, X++Keepers).
+    keepers_backwards(Leaves, append_no_repeats(X, Keepers)).
 kb2(<<N:4, Path/bitstring>>, Stem, Keepers) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	1 -> %another stem
 	    Next = stem:deserialize(dump:get(PN, stem)), 
-	    kb2(Path, Next, [PN|Keepers]);
+	    kb2(Path, Next, append_no_repeats([PN], Keepers));
 	2 -> %leaf
 	    Keepers
     end.
@@ -45,10 +45,10 @@ append_no_repeats([],[],X) -> X;
 append_no_repeats([],B,X) -> 
     append_no_repeats(B,[],X);
 append_no_repeats([A|Ta],B,X) -> 
-    Bool1 = in_list(A, B),
+    %Bool1 = in_list(A, B),
     Bool2 = in_list(A, X),
     if
-	Bool1 -> append_no_repeats(Ta, B, X);
+	%Bool1 -> append_no_repeats(Ta, B, X);
 	Bool2 -> append_no_repeats(Ta, B, X);
 	true -> append_no_repeats(Ta,B,[A|X])
     end.
@@ -69,7 +69,7 @@ in_list(X, [X|_]) -> true;
 in_list(_, []) -> false;
 in_list(X, [_|Z]) -> in_list(X, Z).
 delete_stuff(N, Keepers, Id) ->
-    S = dump:highest(Id),
+    S = dump:highest(Id) div dump:word(Id),
     delete_stuff(S, N, Keepers, Id).
 delete_stuff(S, N, Keepers, Id) ->
     Bool = in_list(N, Keepers),
@@ -78,6 +78,10 @@ delete_stuff(S, N, Keepers, Id) ->
 	Bool ->
 	    delete_stuff(S, N+1, Keepers, Id);
 	true ->
+	    %only delete if it is active!!
+	    io:fwrite("delete N "),
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n"),
 	    dump:delete(N, Id),
 	    delete_stuff(S, N+1, Keepers, Id)
     end.

@@ -2,11 +2,16 @@
 -export([test/0]).
 
 test() ->
-    test1(),
-    test2(),
-    test3(),
-    test4().
-    %test5().
+    io:fwrite("test 1\n"),
+    %test1(),
+    io:fwrite("test 2\n"),
+    %test2(),
+    io:fwrite("test 3\n"),
+    %test3(),
+    io:fwrite("test 4\n"),
+    %test4(),
+    io:fwrite("test 5\n"),
+    test5().
 
 test1() ->
     Nib1 = 4,
@@ -70,35 +75,6 @@ test1() ->
     {PP4,L3,L3b,PP5} = get:get(L3, Loc7),
     true = verify:proof(PP4,L3c,PP5),
     ok.
-test5() ->
-    Root0 = 0,
-    V1 = <<1,1>>,
-    V2 = <<1,2>>,
-    V3 = <<1,3>>,
-    L1 = <<0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0>>,
-    L2 = <<0,16,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0>>,
-    L3 = <<0,1,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0,
-	   0,0,0,0,0,0,0,0>>,
-    {_, Root1, _} = store:store(L1, V1, Root0),
-    {_, Root2, _} = store:store(L2, V2, Root1),
-    {_, Root3, _} = store:store(L3, V3, Root2),
-    X = [{L1, Root3}],
-    garbage:garbage_leaves(X),
-    {Hash, L1, Proof} = get:get(L1, Root3),
-    verify:proof(Hash, L1, V1, Proof),
-    empty = get:get(L2, Root3),
-    empty = get:get(L3, Root3),
-    {_, Root3, _} = store:store(L3, V3, Root3),
-    {_, Root4, _} = store:store(L3, V2, Root3),
-    ok.
     
     
 
@@ -113,14 +89,11 @@ test2() ->
 
 test3() -> 
     Loc = 0,
-    Times = 1000,
+    Times = 0,%100000
     NewLoc = test3a(0, Times, Loc),
     test3b(0, Times, NewLoc).
 test3a(N, N, L) -> L;
 test3a(N, M, Loc) -> %load up the trie
-    io:fwrite("Loc is "),
-    io:fwrite(integer_to_list(Loc)),
-    io:fwrite("\n"),
     Key = <<N:16>>,
     Value = Key,
     NewLoc = trie:put(Key, Value, Loc),
@@ -174,3 +147,34 @@ test4() ->
     Data32 = dump:get(A32, stem),
     dump:delete(A02, stem),
     success.
+
+test5() ->
+    Root0 = 0,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    V3 = <<1,3>>,
+    L1 = <<0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    L2 = <<0,16,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    L3 = <<0,1,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0,
+	   0,0,0,0,0,0,0,0>>,
+    {_, Root1, _} = store:store(L1, V1, Root0),
+    {Hash, Root2, _} = store:store(L2, V2, Root1),
+    {Hash2, Root3, _} = store:store(L2, V2, Root2),
+    Hash = Hash2,
+    {_, Root4, _} = store:store(L3, V3, Root3),
+    X = [{L1, Root4}],
+    io:fwrite("garbage leaves\n"),
+    garbage:garbage_leaves(X),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
+    %We need a merkle proof of it's previous state in order to update.
+    {Hash3, L1, V1, Proof} = get:get(L1, Root4),
+    verify:proof(Hash3, L1, V1, Proof),
+    ok.
