@@ -29,31 +29,22 @@ find_branch(Path, N, Value, Parent, Trail) ->
 	0 ->%empty
 	    RP;
 	1 ->%another stem
-	    io:fwrite("find stem\n"),
 	    find_branch(Path, M, Value, Pointer, RP);
 	2 ->%a leaf. 
 	    %io:fwrite("a leaf\n"),
 	    Leaf = dump:get(Pointer, leaf),
 	    <<L:256, _/bitstring>> = Leaf,
 	    La = <<L:256>>,
-	    io:fwrite("Path "),
-	    io:fwrite(Path),
-	    io:fwrite("\n"),
-	    io:fwrite("La "),
-	    io:fwrite(La),
-	    io:fwrite("\n"),
 	    case La of
 		Path -> %overwrite
 		    io:fwrite("overwrite\n"),
 		    RP;
 		_ -> %split leaf, add stem(s)
-		    io:fwrite("split leaf\n"),
 		    {Leaf, Pointer, RP}
 	    end
     end.
 store_branch([], Path, _Type, Pointer, _) ->
     {Hash, _, _, Proof} = get:get(Path, Pointer),
-    io:fwrite("store branch here\n"),
     {Hash, Pointer, Proof};
 store_branch([B|Branch], Path, Type, Pointer, Hash) ->
     %S = length(Branch)+1,

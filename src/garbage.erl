@@ -78,10 +78,6 @@ delete_stuff(S, N, Keepers, Id) ->
 	Bool ->
 	    delete_stuff(S, N+1, Keepers, Id);
 	true ->
-	    %only delete if it is active!!
-	    io:fwrite("delete N "),
-	    io:fwrite(integer_to_list(N)),
-	    io:fwrite("\n"),
 	    dump:delete(N, Id),
 	    delete_stuff(S, N+1, Keepers, Id)
     end.

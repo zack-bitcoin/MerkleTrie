@@ -3,13 +3,13 @@
 
 test() ->
     io:fwrite("test 1\n"),
-    %test1(),
+    test1(),
     io:fwrite("test 2\n"),
-    %test2(),
+    test2(),
     io:fwrite("test 3\n"),
-    %test3(),
+    test3(),
     io:fwrite("test 4\n"),
-    %test4(),
+    test4(),
     io:fwrite("test 5\n"),
     test5().
 
@@ -89,7 +89,7 @@ test2() ->
 
 test3() -> 
     Loc = 0,
-    Times = 0,%100000
+    Times = 10000,
     NewLoc = test3a(0, Times, Loc),
     test3b(0, Times, NewLoc).
 test3a(N, N, L) -> L;
