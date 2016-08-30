@@ -6,8 +6,8 @@ get(Path, Root) -> %returns {RootHash, Path, Value, Proof}
     H = stem:hash(S),
     case get2(Path, S, [stem:hashes(S)]) of
 	{A, B} ->
-	    <<Path2:256, Value/binary>> = A,
-	    {H, <<Path2:256>>, Value, B};
+	    <<Path2:96, Value/binary>> = A,
+	    {H, <<Path2:96>>, Value, B};
 	empty ->
 	    empty
     end.       

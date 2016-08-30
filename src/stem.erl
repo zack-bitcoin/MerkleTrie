@@ -40,7 +40,7 @@ serialize(P, H, T, N) ->
     T1 = element(N, T),
     D = serialize(P, H, T, N+1),
     S = size(H1),
-    X = 32 - S,
+    X = 12 - S,
     Y = <<0:(X*8)>>,
     << T1:2, P1:40, H1/binary, Y/binary, D/bitstring >>.
 deserialize(B) -> 
@@ -48,16 +48,16 @@ deserialize(B) ->
     deserialize(1,X,X,X,B).
 deserialize(17, T,P,H, <<>>) -> 
     #stem{types = T, pointers = P, hashes = H};
-deserialize(N, T0,P0,H0, <<T:2, P:40, H:256, D/bitstring>>) ->    
+deserialize(N, T0,P0,H0, <<T:2, P:40, H:96, D/bitstring>>) ->    
     T1 = setelement(N, T0, T),
     P1 = setelement(N, P0, P),
-    H1 = setelement(N, H0, <<H:256>>),
+    H1 = setelement(N, H0, <<H:96>>),
     deserialize(N+1, T1, P1, H1, D).
 empty_hashes() ->
-    {<<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>,
-     <<0:256>>,<<0:256>>,<<0:256>>,<<0:256>>}.
+    {<<0:96>>,<<0:96>>,<<0:96>>,<<0:96>>,
+     <<0:96>>,<<0:96>>,<<0:96>>,<<0:96>>,
+     <<0:96>>,<<0:96>>,<<0:96>>,<<0:96>>,
+     <<0:96>>,<<0:96>>,<<0:96>>,<<0:96>>}.
 empty_root() ->
     P = empty_tuple(),
     T = empty_tuple(),
@@ -75,7 +75,7 @@ hash(S) ->
 hash2(17, _, X) -> hash:doit(X);
 hash2(N, H, X) ->
     A = element(N, H),
-    32 = size(A),
+    12 = size(A),
     hash2(N+1, H, <<A/binary, X/binary>>).
 
 test() ->
