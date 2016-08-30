@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/2,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, get/2,put/2,garbage/1,garbage_leaves/1,m/0,integer2path/2,flip_bytes/1]).
+-export([start_link/2,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, get/2,put/2,garbage/1,garbage_leaves/1,m/0,integer2path/2,flip_bytes/1,to_path/1]).
 -define(M, gen_server:call(?MODULE, m)).
 init([Size, Max]) ->  
     ReplaceStem = <<0:(8*(dump:word(stem)))>>,
@@ -34,6 +34,9 @@ handle_call({garbage_leaves, KLS}, _From, {Size, M}) ->
     {reply, ok, {Size, M}};
 handle_call(m, _From, {Size, M}) -> 
     {reply, M, {Size, M}};
+handle_call({to_path, X}, _From, {Size, M}) -> 
+    Y = integer2path(X, M),
+    {reply, Y, {Size, M}};
 handle_call(_, _From, X) -> {reply, X, X}.
 
 put(Value, Root) ->
@@ -48,3 +51,6 @@ flip_bytes(X) -> flip_bytes(X, <<>>).
 flip_bytes(<<>>, X) -> X;
 flip_bytes(<<N:8, T/bitstring>>, X) -> 
     flip_bytes(T, <<N:8, X/bitstring>>).
+to_path(X) ->
+    gen_server:call(?MODULE, {to_path, X}).
+
