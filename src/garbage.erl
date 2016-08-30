@@ -1,17 +1,25 @@
 -module(garbage).
--export([garbage/1, garbage_leaves/1]).
-garbage_leaves(KeeperLeaves) ->
+-export([garbage/2, garbage_leaves/2]).
+garbage_leaves(KeeperLeaves, M) ->
     {KeeperStems, KL} = keepers_backwards(KeeperLeaves),
+    dump_bits(KL, M),
     delete_stuff(0, KL, leaf),
     delete_stuff(0, KeeperStems, stem),
     ok.
-garbage(KeeperRoots) ->
+garbage(KeeperRoots, M) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
     io:fwrite("KeeperLeaves"),
     io:fwrite(integer_to_list(length(KeeperLeaves))),
     delete_stuff(0, KeeperStems, stem),
     delete_stuff(0, KeeperLeaves, leaf),
+    dump_bits(KeeperLeaves, M),
     ok.
+dump_bits([], _) -> ok;
+dump_bits([K|T], N) -> 
+    <<Location:N, _/bitstring>> = dump:get(K, leaf),
+    <<L:N>> = trie:flip_bytes(<<Location:N>>),
+    dump_bits:delete(trie_bits, L),
+    dump_bits(T, N).
 keepers_backwards(X) -> keepers_backwards(X, {[],[]}).
 keepers_backwards([], X) -> X;
 keepers_backwards([{Path, Root}|Leaves], {KS, KL}) -> 

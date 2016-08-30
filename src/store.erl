@@ -33,8 +33,8 @@ find_branch(Path, N, Value, Parent, Trail) ->
 	2 ->%a leaf. 
 	    %io:fwrite("a leaf\n"),
 	    Leaf = dump:get(Pointer, leaf),
-	    <<L:96, _/bitstring>> = Leaf,
-	    La = <<L:96>>,
+	    <<L:40, _/bitstring>> = Leaf,
+	    La = <<L:40>>,
 	    case La of
 		Path -> %overwrite
 		    io:fwrite("overwrite\n"),

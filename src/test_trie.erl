@@ -19,9 +19,7 @@ test() ->
 test1() ->
     Nib1 = 4,
     Nib2 = 2,
-    L = <<Nib1:4,Nib2:4,0,0,0,
-	  0,0,0,0,
-	  0,0,0,0>>,
+    L = <<Nib1:4,Nib2:4,0,0,0,0>>,
     Lb = <<255,255>>,
     Lc = <<L/binary, Lb/binary>>,
     Loc1 = dump:put(Lc, leaf),
@@ -40,9 +38,7 @@ test1() ->
     %Now we add a second element.
     Nib3 = 5,
     Nib4 = 10,
-    L2 = <<Nib3:4,Nib4:4,0,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
+    L2 = <<Nib3:4,Nib4:4,0,0,0,0>>,
     L2b = <<255,255>>,
     L2c = <<L2/binary, L2b/binary>>,
     Loc4 = dump:put(L2c, leaf),
@@ -63,9 +59,7 @@ test1() ->
 
     Nib5 = 4,
     Nib6 = 2,
-    L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
+    L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,0>>,
     L3b = <<255,255>>,
     L3c = <<L3/binary, L3b/binary>>,
     {_, Loc7, _} = store:store(L3, L3b, Loc6),
@@ -78,41 +72,42 @@ test1() ->
 
 test2() ->
     Loc = 0,
-    L = <<0:4,0:4,0:4,0:4, 0,0,0,0,0,0,
-	   0,0,0,0>>,
+    L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     La = <<255, 0>>,
     store:store(L, La, Loc).
 
 test3() -> 
     Loc = 0,
     Times = 1000,
-    NewLoc = test3a(0, Times, Loc),
-    test3b(0, Times, NewLoc).
-test3a(N, N, L) -> L;
-test3a(N, M, Loc) -> %load up the trie
+    {Keys, NewLoc} = test3a(Times, [], Loc),
+    test3b(1, Keys, NewLoc).
+test3a(0, Keys, L) -> {Keys, L};
+test3a(N, Keys, Loc) -> %load up the trie
     if
 	(N rem 100) == 0 ->
 	    io:fwrite(integer_to_list(N)),
 	    io:fwrite("\n");
 	true -> ok
     end,
-    Key = <<N:16>>,
-    Value = Key,
-    NewLoc = trie:put(Key, Value, Loc),
-    test3a(N+1, M, NewLoc).
-test3b(N, N, L) -> L;
-test3b(N, M, Loc) ->  %check that everything is in the trie
+    %Key = <<N:16>>,
+    %Value = Key,
+    Value = <<N:16>>,
+    {Key, NewLoc} = trie:put(Value, Loc),
+    test3a(N-1, [Key|Keys], NewLoc).
+test3b(_, [], L) -> L;
+test3b(N, [Key|T], Loc) ->  %check that everything is in the trie
     if
 	(N rem 100) == 0 ->
 	    io:fwrite(integer_to_list(N)),
 	    io:fwrite("\n");
 	true -> ok
     end,
-    Key = <<N:16>>,
-    Value = Key,
+    %Key = <<N:16>>,
+    %Value = Key,
+    Value = <<N:16>>,
     {Hash, Value, Proof} = trie:get(Key, Loc),
-    verify:proof(Hash, Key, Value, Proof),
-    test3b(N+1, M, Loc).
+    true = verify:proof(Hash, trie:integer2path(Key, trie:m()), Value, Proof),
+    test3b(N+1, T, Loc).
 
 test4() ->
     Size = dump:word(leaf),
@@ -156,22 +151,16 @@ test5() ->
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
-    L1 = <<0,0,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
-    L2 = <<0,16,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
-    L3 = <<0,1,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
+    L1 = <<0,0,0,0,0>>,
+    L2 = <<0,16,0,0,0>>,
+    L3 = <<0,1,0,0,0>>,
     {_, Root1, _} = store:store(L1, V1, Root0),
     {Hash, Root2, _} = store:store(L2, V2, Root1),
     {Hash, Root3, _} = store:store(L2, V2, Root2),
     {_, Root4, _} = store:store(L3, V3, Root3),
     X = [{L1, Root4}],
     io:fwrite("garbage leaves\n"),
-    garbage:garbage_leaves(X),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    garbage:garbage_leaves(X, trie:m()),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     {Hash3, L1, V1, Proof} = get:get(L1, Root4),
@@ -187,12 +176,8 @@ test6() ->
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
-    L1 = <<0,0,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
-    L2 = <<0,16,0,0,
-	   0,0,0,0,
-	   0,0,0,0>>,
+    L1 = <<0,0,0,0,0>>,
+    L2 = <<0,16,0,0,0>>,
     {_, Root1, _} = store:store(L1, V1, Root0),
     {Hash0bb, L1, V1, B0bb} = get:get(L1, Root1),
     true = verify:proof(Hash0bb, <<L1/bitstring, V1/bitstring>>, B0bb),
@@ -210,7 +195,7 @@ test6() ->
     GL = [{L1, Root1}],
     {Hash, _, _} = store:store(L2, V3, Root1),
     {_, _, V1, _} = get:get(L1, Root1),
-    garbage:garbage_leaves(GL),
+    garbage:garbage_leaves(GL, trie:m()),
     {_, _, V1, _} = get:get(L1, Root1),
     %it is over-writing the old leaf.
     {Hash, _, _} = store:store(L2, V3, Root1),

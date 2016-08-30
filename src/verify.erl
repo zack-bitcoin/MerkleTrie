@@ -2,8 +2,8 @@
 -export([proof/4,proof/3]).
 
 proof(RootHash, Key, Value, Proof) ->
-    Pa = hash:doit(Key),
-    proof(RootHash, <<Pa/binary, Value/binary>>, Proof).
+    %Pa = hash:doit(Key),
+    proof(RootHash, <<Key/binary, Value/binary>>, Proof).
 proof(RootHash, L, Proof) ->
     [H|F] = flip(Proof),
     SH = stem:hash(H),
