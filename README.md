@@ -17,13 +17,14 @@ Example usage:
 <<"\e\e">>
 2> Root0 = 0.
 0
-3> ID = trieID,
-3> {Key1, Root1} = trie:put(Value, Root0, ID).
+3> ID = trieID.
+4> trie_sup:start_link(2, 20000000000, ID).
+4> {Key1, Root1} = trie:put(Value, Root0, ID).
 {1000,7}
-4> {A, Value, B} = trie:get(Key1, Root1, ID).
-{<<111,152,253,167,118,87,135,8,237,82,129,92>>,
+5> {A, Value, B} = trie:get(Key1, Root1, ID).
+{<<96,197,126,39,139,128,190,152,237,187,104,211>>,
  <<"\e\e">>,
- [{<<253,167,171,40,133,247,8,13,11,174,246,99>>,
+ [{<<155,11,34,50,227,53,170,141,122,216,37,246>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
@@ -37,12 +38,12 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,...>>,
-   <<244,186,52,52,132,113,125,109,58,8,...>>,
+   <<0,0,0,0,0,0,0,0,0,0,...>>,
    <<0,0,0,0,0,0,0,0,0,...>>}]}
-5> verify:proof(A, trie:to_path(Key1), Value, B).
+6> verify:proof(A, trie:to_path(Key1, ID), Value, B).
 true
-6> trie:garbage([Root1], ID). %this deletes everything that isn't a branch from one of the roots in the list.
+7> trie:garbage([Root1], ID). %this deletes everything that isn't a branch from one of the roots in the list.
 ok
-7> trie:garbage_leaves([{trie:to_path(Key1), Root1}], trie:m(ID), ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
+8> trie:garbage_leaves([{trie:to_path(Key1, ID), Root1}], ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
 ok
 ```
