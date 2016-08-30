@@ -217,4 +217,4 @@ test6() ->
     Root4 = merge:doit([{L2, V3, B0}], Hash, Root1),
     {Hash, L1, V1, B2} = get:get(L1, Root4),
     true = verify:proof(Hash, <<L1/bitstring, V1/bitstring>>, B2).
-% the current implementation is very innefficient. It stores the entire proof into memory.
+% the current implementation is very innefficient. It stores the entire proof onto the hard drive
