@@ -90,12 +90,24 @@ test3() ->
     test3b(0, Times, NewLoc).
 test3a(N, N, L) -> L;
 test3a(N, M, Loc) -> %load up the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
     Key = <<N:16>>,
     Value = Key,
     NewLoc = trie:put(Key, Value, Loc),
     test3a(N+1, M, NewLoc).
 test3b(N, N, L) -> L;
 test3b(N, M, Loc) ->  %check that everything is in the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
     Key = <<N:16>>,
     Value = Key,
     {Hash, Value, Proof} = trie:get(Key, Loc),
@@ -182,15 +194,33 @@ test6() ->
 	   0,0,0,0,
 	   0,0,0,0>>,
     {_, Root1, _} = store:store(L1, V1, Root0),
+    {Hash0bb, L1, V1, B0bb} = get:get(L1, Root1),
+    true = verify:proof(Hash0bb, <<L1/bitstring, V1/bitstring>>, B0bb),
     {_, Root2, _} = store:store(L2, V2, Root1),
     {Hash0, L2, V2, B0} = get:get(L2, Root2),
     true = verify:proof(Hash0, <<L2/bitstring, V2/bitstring>>, B0),
+    {Hash0b, L1, V1, B0b} = get:get(L1, Root2),
+    io:fwrite("Root2 is "),
+    io:fwrite(integer_to_list(Root2)),
+    io:fwrite("\n"),
+    io:fwrite("Root1 is "),
+    io:fwrite(integer_to_list(Root1)),
+    io:fwrite("\n"),
+    true = verify:proof(Hash0b, <<L1/bitstring, V1/bitstring>>, B0b),
     {Hash, Root3, _} = store:store(L2, V3, Root2),
-    {Hash2, L2, V3, B} = get:get(L2, Root3),
-    Hash = Hash2,
-    true = verify:proof(Hash2, <<L2/bitstring, V3/bitstring>>, B),
+    {Hasha, Roota, _} = store:store(L2, V3, Root1),
+    %the problem is that in the second case, the stem make it look like both leaves hold the data for leaf 2, but the leaves hold the right data. The first case looks right. it stores 1,1 and 1,3.
+    io:fwrite("Root3 is "),
+    io:fwrite(integer_to_list(Root3)),
+    io:fwrite("\n"),
+    io:fwrite("Roota is "),
+    io:fwrite(integer_to_list(Roota)),
+    io:fwrite("\n"),
+    Hasha = Hash,
+    {Hash, L2, V3, B} = get:get(L2, Root3),
+    true = verify:proof(Hash, <<L2/bitstring, V3/bitstring>>, B),
     GL = [{L1, Root0}, {L1, Root2}],
     garbage:garbage_leaves(GL),
-    Root4 = merge:doit(Hash, [{L2, V3, B0}], Root1),
+    Root4 = merge:doit([{L2, V3, B0}], Hash, Root1),
     {Hash, L1, V1, B2} = get:get(L1, Root4),
     true = verify:proof(Hash, <<L1/bitstring, V1/bitstring>>, B2).

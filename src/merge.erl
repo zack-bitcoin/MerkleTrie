@@ -1,13 +1,17 @@
 -module(merge).
 -export([doit/3]).
 
-doit(H, L, R) -> 
-    {H, R2} = helper(L, R),
+doit(L, H, R) -> 
+    %first, in ram, generate the proof trie for the new data to calculate the new state root.
+    %then, starting from the leaves, put the new trie onto the database, Only replace existing stems and leaves, don't add new stems or leaves.
+    Root = dump:get(R, stem),
+    H0 = stem:hash(Root),
+    {H, R2} = helper(L, H0, R),
     R2.
-helper([], R) -> R;
-helper([{Path, Value, Proof}|T], R) -> 
+helper([], H, R) -> {H, R};
+helper([{Path, Value, _Proof}|T], _H, R) -> 
     io:fwrite("working here"),
-    R2 = ok,
-    helper(T, R2).
+    {H2, R2, _} = store:store(Path, Value, R),
+    helper(T, H2, R2).
 
     

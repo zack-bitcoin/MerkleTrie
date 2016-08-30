@@ -58,7 +58,7 @@ store_branch([B|Branch], Path, Type, Pointer, Hash) ->
 more_branch(Leaf, LP2, Leaf2, B) ->
     {A, N2} = more_branch3(Leaf, Leaf2, 0),
     [H|T] = more_branch2(A-B+1),
-    LH2 = hash:doit(Leaf),
+    LH2 = hash:doit(Leaf2),
     H2 = stem:add(H, N2, 2, LP2, LH2),
     [H2|T].
 more_branch3(Leaf, Leaf2, N) -> %returns {convergense_length, next nibble}
