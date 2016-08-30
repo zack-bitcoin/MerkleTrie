@@ -7,6 +7,6 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, { trie_app, [2]}},
+  {mod, { trie_app, []}},
   {env, []}
  ]}.

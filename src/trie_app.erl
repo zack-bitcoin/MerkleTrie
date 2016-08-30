@@ -10,8 +10,10 @@
 %% ===================================================================
 
 %start(_StartType, _StartArgs) ->
-start(normal, [X]) ->
-    trie_sup:start_link(X).
+start(normal, []) ->
+    Size = 2,
+    Max = 20000000000,
+    trie_sup:start_link(Size, Max).
 
 stop(_State) ->
     ok.
