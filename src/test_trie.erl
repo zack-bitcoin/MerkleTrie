@@ -11,12 +11,16 @@ test() ->
     io:fwrite("test 4\n"),
     test4(),
     io:fwrite("test 5\n"),
-    test5().
+    test5(),
+    io:fwrite("test 6\n"),
+    test6().
+    
 
 test1() ->
     Nib1 = 4,
     Nib2 = 2,
-    L = <<Nib1:4,Nib2:4,0,0,0,0,0,0,0,
+    L = <<Nib1:4,Nib2:4,0,0,0,
+	  0,0,0,0,
 	  0,0,0,0>>,
     Lb = <<255,255>>,
     Lc = <<L/binary, Lb/binary>>,
@@ -36,7 +40,8 @@ test1() ->
     %Now we add a second element.
     Nib3 = 5,
     Nib4 = 10,
-    L2 = <<Nib3:4,Nib4:4,0,0,0,0,0,0,0,
+    L2 = <<Nib3:4,Nib4:4,0,0,0,
+	   0,0,0,0,
 	   0,0,0,0>>,
     L2b = <<255,255>>,
     L2c = <<L2/binary, L2b/binary>>,
@@ -58,7 +63,8 @@ test1() ->
 
     Nib5 = 4,
     Nib6 = 2,
-    L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,0,0,0,0,
+    L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,
+	   0,0,0,0,
 	   0,0,0,0>>,
     L3b = <<255,255>>,
     L3c = <<L3/binary, L3b/binary>>,
@@ -69,8 +75,6 @@ test1() ->
     {PP4,L3,L3b,PP5} = get:get(L3, Loc7),
     true = verify:proof(PP4,L3c,PP5),
     ok.
-    
-    
 
 test2() ->
     Loc = 0,
@@ -81,7 +85,7 @@ test2() ->
 
 test3() -> 
     Loc = 0,
-    Times = 10000,
+    Times = 1000,
     NewLoc = test3a(0, Times, Loc),
     test3b(0, Times, NewLoc).
 test3a(N, N, L) -> L;
@@ -98,12 +102,7 @@ test3b(N, M, Loc) ->  %check that everything is in the trie
     verify:proof(Hash, Key, Value, Proof),
     test3b(N+1, M, Loc).
 
-%Loc = put(Key, Value, 0),
-%{Hash, Value, Proof} = get(Key, Loc),
-%verify_proof(Hash, Key, Value, Proof).
-    
 test4() ->
-    %test low
     Size = dump:word(leaf),
     Data0 = <<11:(8*Size)>>,
     Data1 = <<2:(8*Size)>>,
@@ -156,8 +155,7 @@ test5() ->
 	   0,0,0,0>>,
     {_, Root1, _} = store:store(L1, V1, Root0),
     {Hash, Root2, _} = store:store(L2, V2, Root1),
-    {Hash2, Root3, _} = store:store(L2, V2, Root2),
-    Hash = Hash2,
+    {Hash, Root3, _} = store:store(L2, V2, Root2),
     {_, Root4, _} = store:store(L3, V3, Root3),
     X = [{L1, Root4}],
     io:fwrite("garbage leaves\n"),
@@ -167,3 +165,32 @@ test5() ->
     {Hash3, L1, V1, Proof} = get:get(L1, Root4),
     verify:proof(Hash3, L1, V1, Proof),
     ok.
+
+test6() ->
+    %The purpose of this test is to test merge.
+    % The full merkel trie will be too big, most people wont keep track of it all. 
+    % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
+    % We don't get a proof of the final state. We only get a proof of the initial state, and the final state. It is possible to calculate the new proof from this. The reason we don't get the new proof is because depending on which txs get accepted into the block, the root hash of the new state will be different
+    Root0 = 0,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    V3 = <<1,3>>,
+    L1 = <<0,0,0,0,
+	   0,0,0,0,
+	   0,0,0,0>>,
+    L2 = <<0,16,0,0,
+	   0,0,0,0,
+	   0,0,0,0>>,
+    {_, Root1, _} = store:store(L1, V1, Root0),
+    {_, Root2, _} = store:store(L2, V2, Root1),
+    {Hash0, L2, V2, B0} = get:get(L2, Root2),
+    true = verify:proof(Hash0, <<L2/bitstring, V2/bitstring>>, B0),
+    {Hash, Root3, _} = store:store(L2, V3, Root2),
+    {Hash2, L2, V3, B} = get:get(L2, Root3),
+    Hash = Hash2,
+    true = verify:proof(Hash2, <<L2/bitstring, V3/bitstring>>, B),
+    GL = [{L1, Root0}, {L1, Root2}],
+    garbage:garbage_leaves(GL),
+    Root4 = merge:doit(Hash, [{L2, V3, B0}], Root1),
+    {Hash, L1, V1, B2} = get:get(L1, Root4),
+    true = verify:proof(Hash, <<L1/bitstring, V1/bitstring>>, B2).

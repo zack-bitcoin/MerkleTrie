@@ -1,4 +1,3 @@
-We only need to keep the first 96 bits of a hash, not the entire 256. This will save a lot of space.
 
 The keys we want to store are integers increasing from 0. So instead of taking the hash of the key, we should just use the key as a binary.
 
