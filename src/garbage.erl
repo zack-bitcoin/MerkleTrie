@@ -1,21 +1,24 @@
 -module(garbage).
 -export([garbage/1, garbage_leaves/1]).
 garbage_leaves(KeeperLeaves) ->
-    KeeperStems = keepers_backwards(KeeperLeaves),
-    delete_stuff(0, KeeperLeaves, leaf),
+    {KeeperStems, KL} = keepers_backwards(KeeperLeaves),
+    delete_stuff(0, KL, leaf),
     delete_stuff(0, KeeperStems, stem),
     ok.
 garbage(KeeperRoots) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
+    io:fwrite("KeeperLeaves"),
+    io:fwrite(integer_to_list(length(KeeperLeaves))),
     delete_stuff(0, KeeperStems, stem),
     delete_stuff(0, KeeperLeaves, leaf),
     ok.
-keepers_backwards(X) -> keepers_backwards(X, []).
+keepers_backwards(X) -> keepers_backwards(X, {[],[]}).
 keepers_backwards([], X) -> X;
-keepers_backwards([{Path, Root}|Leaves], X) -> 
+keepers_backwards([{Path, Root}|Leaves], {KS, KL}) -> 
     S = stem:deserialize(dump:get(Root, stem)),
-    Keepers = kb2(Path, S, [Root]),
-    keepers_backwards(Leaves, append_no_repeats(X, Keepers)).
+    {Stems, Leaf} = kb2(Path, S, [Root]),
+    keepers_backwards(Leaves, {append_no_repeats(KS, Stems), 
+			       append_no_repeats([Leaf], KL)}).
 kb2(<<N:4, Path/bitstring>>, Stem, Keepers) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
@@ -24,7 +27,7 @@ kb2(<<N:4, Path/bitstring>>, Stem, Keepers) ->
 	    Next = stem:deserialize(dump:get(PN, stem)), 
 	    kb2(Path, Next, append_no_repeats([PN], Keepers));
 	2 -> %leaf
-	    Keepers
+	    {Keepers, PN}
     end.
     
 
@@ -40,17 +43,12 @@ keepers([R|Roots]) ->
 	    {[R|append_no_repeats(X, A)],
 	     append_no_repeats(Y, B)}
     end.
-append_no_repeats(X, Y) -> append_no_repeats(X, Y, []).
-append_no_repeats([],[],X) -> X;
-append_no_repeats([],B,X) -> 
-    append_no_repeats(B,[],X);
-append_no_repeats([A|Ta],B,X) -> 
-    %Bool1 = in_list(A, B),
+append_no_repeats([],X) -> X;
+append_no_repeats([A|Ta],X) -> 
     Bool2 = in_list(A, X),
     if
-	%Bool1 -> append_no_repeats(Ta, B, X);
-	Bool2 -> append_no_repeats(Ta, B, X);
-	true -> append_no_repeats(Ta,B,[A|X])
+	Bool2 -> append_no_repeats(Ta, X);
+	true -> append_no_repeats(Ta, [A|X])
     end.
 stem_keepers(S) ->
     stem_keepers(S, 1, [], [], []).
