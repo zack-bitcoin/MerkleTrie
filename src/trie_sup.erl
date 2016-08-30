@@ -6,9 +6,13 @@ start_link(Size, Max) -> supervisor:start_link({local, ?MODULE}, ?MODULE, [Size,
 stop() -> halt().
 init([Size, Max]) ->
     %S is the size of the data we store in the trie.
-    Children = [%{leaf, {db_sup, start_link, [leaf, 32+S]}, permanent, 5000, supervisor, [db_sup]},
-		%{stem, {db_sup, start_link, [stem, 596]}, permanent, 5000, supervisor, [db_sup]},
-		{leaf, {dump_sup, start_link, [leaf, 12+Size]}, permanent, 5000, supervisor, [dump_sup]},
+    %depluralize nouns to stop namespace overlap with dup_sup
+    L1 = "trie_bit.db",
+    A1 = trie_bit_file,
+    A2 = trie_bit,
+    Children = [{leaf, {dump_sup, start_link, [leaf, 12+Size]}, permanent, 5000, supervisor, [dump_sup]},
 		{stem, {dump_sup, start_link, [stem, 276]}, permanent, 5000, supervisor, [dump_sup]},
+		{A1, {file_manager, start_link, [L1, A1]}, permanent, 5000, worker, [file_manager]},
+		{A2, {dump_bits, start_link, [A2]}, permanent, 5000, worker, [dump_bits]},
 		{trie, {trie, start_link, [Size, Max]}, permanent, 5000, worker, [trie]}],
     {ok, { {one_for_one, 5, 10}, Children} }.
