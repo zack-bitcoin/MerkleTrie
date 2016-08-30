@@ -38,11 +38,10 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,0,0,...>>,
    <<244,186,52,52,132,113,125,109,58,8,...>>,
    <<0,0,0,0,0,0,0,0,0,...>>}]}
-5> verify:proof(A, trie:to_path(Key), Value, B).
-6> verify:proof(A, trie:to_path(Key1), Value, B).
+5> verify:proof(A, trie:to_path(Key1), Value, B).
 true
-7> trie:garbage([Root1]). %this deletes everything that isn't a branch from one of the roots in the list.
+6> trie:garbage([Root1]). %this deletes everything that isn't a branch from one of the roots in the list.
 ok
-8> trie:garbage_leaves([{trie:to_path(Key1), Root1}]). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
+7> trie:garbage_leaves([{trie:to_path(Key1), Root1}]). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
 ok
 ```

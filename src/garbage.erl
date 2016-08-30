@@ -1,53 +1,55 @@
 -module(garbage).
--export([garbage/2, garbage_leaves/2]).
-garbage_leaves(KeeperLeaves, M) ->
-    {KeeperStems, KL} = keepers_backwards(KeeperLeaves),
-    dump_bits(KL, M),
-    delete_stuff(0, KL, leaf),
-    delete_stuff(0, KeeperStems, stem),
+-export([garbage/3, garbage_leaves/3]).
+garbage_leaves(KeeperLeaves, M, ID) ->
+    {KeeperStems, KL} = keepers_backwards(KeeperLeaves, ID),
+    dump_bits(KL, M, ID),
+    delete_stuff(0, KL, ids:leaf(ID)),
+    delete_stuff(0, KeeperStems, ids:stem(ID)),
     ok.
-garbage(KeeperRoots, M) ->
-    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots),
-    io:fwrite("KeeperLeaves"),
+garbage(KeeperRoots, M, ID) ->
+    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, ID),
     io:fwrite(integer_to_list(length(KeeperLeaves))),
-    delete_stuff(0, KeeperStems, stem),
-    delete_stuff(0, KeeperLeaves, leaf),
-    dump_bits(KeeperLeaves, M),
+    delete_stuff(0, KeeperStems, ids:stem(ID)),
+    delete_stuff(0, KeeperLeaves, ids:leaf(ID)),
+    dump_bits(KeeperLeaves, M, ID),
     ok.
-dump_bits([], _) -> ok;
-dump_bits([K|T], N) -> 
-    <<Location:N, _/bitstring>> = dump:get(K, leaf),
+dump_bits([], _, _) -> ok;
+dump_bits([K|T], N, ID) -> 
+    <<Location:N, _/bitstring>> = dump:get(K, ids:leaf(ID)),
     <<L:N>> = trie:flip_bytes(<<Location:N>>),
-    dump_bits:delete(trie_bits, L),
-    dump_bits(T, N).
-keepers_backwards(X) -> keepers_backwards(X, {[],[]}).
-keepers_backwards([], X) -> X;
-keepers_backwards([{Path, Root}|Leaves], {KS, KL}) -> 
-    S = stem:deserialize(dump:get(Root, stem)),
-    {Stems, Leaf} = kb2(Path, S, [Root]),
-    keepers_backwards(Leaves, {append_no_repeats(KS, Stems), 
-			       append_no_repeats([Leaf], KL)}).
-kb2(<<N:4, Path/bitstring>>, Stem, Keepers) ->
+    %dump_bits:delete(trie_bits, L),
+    dump_bits:delete(ids:bits(ID), L),
+    dump_bits(T, N, ID).
+keepers_backwards(X, ID) -> keepers_backwards(X, {[],[]}, ID).
+keepers_backwards([], X, _) -> X;
+keepers_backwards([{Path, Root}|Leaves], {KS, KL}, ID) -> 
+    S = stem:deserialize(dump:get(Root, ids:stem(ID))),
+    {Stems, Leaf} = kb2(Path, S, [Root], ID),
+    keepers_backwards(Leaves, 
+		      {append_no_repeats(KS, Stems), 
+		       append_no_repeats([Leaf], KL)}, 
+		      ID).
+kb2(<<N:4, Path/bitstring>>, Stem, Keepers, ID) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	1 -> %another stem
-	    Next = stem:deserialize(dump:get(PN, stem)), 
-	    kb2(Path, Next, append_no_repeats([PN], Keepers));
+	    Next = stem:deserialize(dump:get(PN, ids:stem(ID))), 
+	    kb2(Path, Next, append_no_repeats([PN], Keepers), ID);
 	2 -> %leaf
 	    {Keepers, PN}
     end.
     
 
-keepers([]) -> {[], []};
-keepers([R|Roots]) ->
-    case stem:deserialize(dump:get(R, stem)) of
+keepers([], _) -> {[], []};
+keepers([R|Roots], ID) ->
+    case stem:deserialize(dump:get(R, ids:stem(ID))) of
 	error -> 
-	    {A, B} = keepers(Roots),
+	    {A, B} = keepers(Roots, ID),
 	    {[R|A],B};
 	S -> 
 	    {X, Y, MoreRoots} = stem_keepers(S),
-	    {A, B} = keepers(MoreRoots++Roots),
+	    {A, B} = keepers(MoreRoots++Roots, ID),
 	    {[R|append_no_repeats(X, A)],
 	     append_no_repeats(Y, B)}
     end.
@@ -74,9 +76,9 @@ stem_keepers(S, N, Stems, Leaves, MoreRoots) ->
 in_list(X, [X|_]) -> true;
 in_list(_, []) -> false;
 in_list(X, [_|Z]) -> in_list(X, Z).
-delete_stuff(N, Keepers, Id) ->
-    S = dump:highest(Id) div dump:word(Id),
-    delete_stuff(S, N, Keepers, Id).
+delete_stuff(N, Keepers, ID) ->
+    S = dump:highest(ID) div dump:word(ID),
+    delete_stuff(S, N, Keepers, ID).
 delete_stuff(S, N, Keepers, Id) ->
     Bool = in_list(N, Keepers),
     if

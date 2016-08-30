@@ -13,7 +13,8 @@
 start(normal, []) ->
     Size = 2,
     Max = 20000000000,
-    trie_sup:start_link(Size, Max).
+    ID = trie01,
+    trie_sup:start_link(Size, Max, ID).
 
 stop(_State) ->
     ok.
