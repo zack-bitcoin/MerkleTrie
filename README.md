@@ -1,7 +1,10 @@
 Merkle Trie
 
-the goal of this project is to have a merkel tree on the hard drive for a blockchain.
-It remembers fixed size pieces of data. You can choose the size of data in the .app file when you use rebar to include this library.
+the goal of this project is to:
+1) have a merkel tree on the hard drive
+2) the root hash of a trie is deterministicly derived from the contents, order doesn't matter.
+3) the keys to access are integers increasing from 0.
+4) the data being stored is fixed size.
 
 Install process:
 
