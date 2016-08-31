@@ -21,10 +21,12 @@ Example usage:
 2> Root0 = 0.
 0
 3> ID = trieID.
-4> trie_sup:start_link(2, 20000000000, ID). %this means that each object being stored is 2 bytes big, and we can hold up to 20 billion objects.
-5> {Key1, Root1} = trie:put(Value, Root0, ID).
+4> Size = 2, %this means that each object being stored is 2 bytes big, 
+5> Max = 20000000000, %and we can hold up to 20 billion objects.
+6> trie_sup:start_link(Size, Max, ID). 
+7> {Key1, Root1} = trie:put(Value, Root0, ID).
 {1000,7}
-6> {A, Value, B} = trie:get(Key1, Root1, ID).
+8> {A, Value, B} = trie:get(Key1, Root1, ID).
 {<<96,197,126,39,139,128,190,152,237,187,104,211>>,
  <<"\e\e">>,
  [{<<155,11,34,50,227,53,170,141,122,216,37,246>>,
@@ -43,10 +45,10 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,0,0,...>>,
    <<0,0,0,0,0,0,0,0,0,0,...>>,
    <<0,0,0,0,0,0,0,0,0,...>>}]}
-7> verify:proof(A, trie:to_path(Key1, ID), Value, B).
+9> verify:proof(A, trie:to_path(Key1, ID), Value, B).
 true
-8> trie:garbage([Root1], ID). %this deletes everything that isn't a branch from one of the roots in the list.
+10> trie:garbage([Root1], ID). %this deletes everything that isn't a branch from one of the roots in the list.
 ok
-9> trie:garbage_leaves([{trie:to_path(Key1, ID), Root1}], ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
+11> trie:garbage_leaves([{trie:to_path(Key1, ID), Root1}], ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
 ok
 ```
