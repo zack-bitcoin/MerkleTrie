@@ -1,5 +1,5 @@
 -module(test_trie).
--export([test/0]).
+-export([test/0,test3/0]).
 
 -define(ID, trie01).
 
@@ -80,7 +80,7 @@ test2() ->
 
 test3() -> 
     Loc = 0,
-    Times = 1000,
+    Times = 10000,
     {Keys, NewLoc} = test3a(Times, [], Loc),
     test3b(1, Keys, NewLoc).
 test3a(0, Keys, L) -> {Keys, L};

@@ -1,1 +1,1 @@
-rm *.db
+rm data/*.db
