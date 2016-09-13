@@ -12,9 +12,11 @@
 %start(_StartType, _StartArgs) ->
 start(normal, []) ->
     Size = 2,
-    Max = 20000000000,
+    %Max = 20000000000,
     ID = trie01,
-    trie_sup:start_link(Size, Max, ID).
+    WS = 0,
+    KeyLength = 5,
+    trie_sup:start_link(Size, ID, WS, KeyLength).
 
 stop(_State) ->
     ok.

@@ -52,3 +52,5 @@ ok
 11> trie:garbage_leaves([{trie:to_path(Key1, ID), Root1}], ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
 ok
 ```
+
+here is an example of a project that uses this MerkleTrie: https://github.com/BumblebeeBat/PinkFairy
