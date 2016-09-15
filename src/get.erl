@@ -1,25 +1,23 @@
 -module(get).
--export([get/4]).
+-export([get/5]).
 
-get(Path, Root, ID, WS) -> %returns {RootHash, Path, Value, Proof}
-    S = stem:deserialize(dump:get(Root, ids:stem(ID)), WS),
+get(Path, Root, ID, WS, LS) -> %returns {RootHash, Path, Value, Proof}
+    S = stem:get(Root, WS, ID),
     H = stem:hash(S, WS),
-    case get2(Path, S, [stem:hashes(S)], ID, WS) of
-	{A, Proof} ->
-	    <<Weight:WS, Path2:40, Value/binary>> = A,
-	    {H, <<Path2:40>>, Value, Proof, Weight};
-	empty ->
-	    empty
+    case get2(Path, S, [stem:hashes(S)], ID, WS, LS) of
+	{A, Proof} -> {H, A, Proof};
+	empty -> empty
     end.       
-get2(<<N:4, Path/bitstring>>, Stem, Proof, ID, WS) ->
+get2(<<N:4, Path/bitstring>>, Stem, Proof, ID, WS, LS) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	0 -> %empty
 	    empty;
 	1 -> %another stem
-	    Next = stem:deserialize(dump:get(PN, ids:stem(ID)), WS), 
-	    get2(Path, Next, [stem:hashes(Next)|Proof], ID, WS);
+	    Next = stem:get(PN, WS, ID),
+	    get2(Path, Next, [stem:hashes(Next)|Proof], ID, WS, LS);
 	2 -> %leaf
-	    {dump:get(PN, ids:leaf(ID)), Proof}
+	    Leaf2 = leaf:get(PN, WS, LS, ID),
+	    {Leaf2, Proof}
     end.

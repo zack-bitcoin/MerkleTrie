@@ -1,7 +1,7 @@
 %The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
 
 -module(stem).
--export([test/0,empty_root/1,serialize/2,deserialize/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1]).
+-export([test/0,empty_root/1,get/3,put/3,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1]).
 -record(stem, {types = empty_tuple(), pointers = empty_tuple(), weights = empty_tuple(), hashes = empty_hashes()}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
 add(S, N, T, P, W, H) ->
@@ -47,14 +47,15 @@ serialize(P, H, T, W, WS, N) -> %WS is the size of the weight element in bits.
     T1 = element(N, T),
     W1 = element(N, W),
     D = serialize(P, H, T, W, WS, N+1),
-    << T1:2, P1:40, W1:WS, H1/binary, D/bitstring >>.
+    << T1:2, P1:40, W1:(WS*8), H1/binary, D/bitstring >>.
 deserialize(B, WS) -> 
     X = empty_tuple(),
     deserialize(1,X,X,X,WS,X, B).
 deserialize(17, T,P,W,_WS,H, <<>>) -> 
     #stem{types = T, pointers = P, hashes = H, weights = W};
 deserialize(N, T0,P0,W0,WS,H0,X) ->
-    <<T:2, P:40, W:WS, H:96, D/bitstring>> = X,
+    WW = WS*8,
+    <<T:2, P:40, W:WW, H:96, D/bitstring>> = X,
     T1 = setelement(N, T0, T),
     P1 = setelement(N, P0, P),
     W1 = setelement(N, W0, W),
@@ -85,7 +86,11 @@ hash2(N, H, X) ->
     A = element(N, H),
     12 = size(A),
     hash2(N+1, H, <<A/binary, X/binary>>).
-
+put(Stem, WS, ID) ->
+    dump:put(serialize(Stem, WS), ids:stem(ID)).
+get(Pointer, WS, ID) -> 
+    S = dump:get(Pointer, ids:stem(ID)),
+    deserialize(S, WS).
 test() ->
     P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
     T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},

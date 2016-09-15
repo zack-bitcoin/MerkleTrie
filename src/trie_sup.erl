@@ -14,6 +14,7 @@ init([Size, ID, WS, KeyLength]) ->
     A4 = ids:stem(ID),
     A5 = ids:main(ID),
     L2 = "data/" ++ IDS ++ "_trie_bits.db",
+    LS = WS + Size + KeyLength,
     Children = [{A3, {dump_sup, start_link, [A3, WS+KeyLength+Size]}, permanent, 5000, supervisor, [dump_sup]},
 		{A4, {dump_sup, start_link, [A4, 276+(16*WS)]}, permanent, 5000, supervisor, [dump_sup]},
 		{A1, {file_manager, start_link, [L1, A1]}, permanent, 5000, worker, [file_manager]},
