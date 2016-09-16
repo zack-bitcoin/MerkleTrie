@@ -122,7 +122,6 @@ test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
     end,
     Weight = 0,
     {Hash, Leaf, Proof} = trie:get(Key, Loc, CFG),
-    %Leaf = leaf:new(Key, Weight, N),
     true = verify:proof(Hash, Leaf, Proof, CFG), 
     test3b(N+1, T, Loc, CFG).
 
