@@ -33,12 +33,12 @@ handle_call({garbage_leaves, KLS}, _From, CFG) ->
 handle_call(cfg, _From, CFG) ->
     {reply, CFG, CFG}.
 cfg(ID) when is_atom(ID) -> gen_server:call({global, ids:main_id(ID)}, cfg).
-put(Value, Root, Weight, CFG) ->
-    gen_server:call({global, ids:main(CFG)}, {put, Value, Root, Weight}).
-get(Key, Root, CFG) -> gen_server:call({global, ids:main(CFG)}, {get, Key, Root}).
-garbage(Keepers, CFG) -> 
+put(Value, Root, Weight, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {put, Value, Root, Weight}).
+get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+garbage(Keepers, ID) -> 
     io:fwrite("trie garbage \n"),
-    gen_server:call({global, ids:main(CFG)}, {garbage, Keepers}).
-garbage_leaves(KLS, CFG) ->
-    gen_server:call({global, ids:main(CFG)}, {garbage_leaves, KLS}).
+    gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
+garbage_leaves(KLS, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
 

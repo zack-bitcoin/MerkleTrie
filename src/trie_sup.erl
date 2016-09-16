@@ -1,8 +1,10 @@
 -module(trie_sup).
 -behaviour(supervisor).
--export([start_link/1,init/1,stop/0]).
+-export([start_link/4,init/1,stop/0]).
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
-start_link(CFG) -> supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, CFG).%WS is the number of bytes to store the amount of money controlled by each branch of the trie.
+start_link(WS, KeyLength, Size, ID) -> 
+    CFG = cfg:new(WS, KeyLength, Size, ID),
+    supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, CFG).%WS is the number of bytes to store the amount of money controlled by each branch of the trie.
 stop() -> halt().
 init(CFG) ->
     %Size is the size of the data we store in the trie.

@@ -1,5 +1,5 @@
 -module(test_trie).
--export([test/0,test7/1]).
+-export([test/0,test7/1,test3a/3]).
 
 -define(ID, trie01).
 
@@ -81,7 +81,7 @@ test1(CFG) ->
     <<L3value:16>> = L3b,
     Leafcc = leaf:new(L3abc, Weight, L3value), 
     {_, Loc7, _} = store:store(Leafcc, Loc6, CFG),
-    trie:garbage([Loc7], CFG),
+    trie:garbage([Loc7], ?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
     0 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
@@ -99,20 +99,19 @@ test2(CFG) ->
 test3(CFG) -> 
     Loc = 0,
     Times = 10000,
-    {Keys, NewLoc} = test3a(Times, [], Loc, CFG),
+    {Keys, NewLoc} = test3a(Times, [], Loc),
     test3b(1, Keys, NewLoc, CFG).
-test3a(0, Keys, L, _) -> {Keys, L};
-test3a(N, Keys, Loc, CFG) -> %load up the trie
+test3a(0, Keys, L) -> {Keys, L};
+test3a(N, Keys, Loc) -> %load up the trie
     if
 	(N rem 100) == 0 ->
 	    io:fwrite(integer_to_list(N)),
 	    io:fwrite("\n");
 	true -> ok
     end,
-    Weight = 0,
-    {Key, NewLoc} = trie:put(N, Loc, Weight, CFG),
-    test3a(N-1, [Key|Keys], NewLoc, CFG).
-test3b(_, [], L, _) -> L;
+    {Key, NewLoc} = trie:put(N, Loc, 0, ?ID),
+    test3a(N-1, [Key|Keys], NewLoc).
+test3b(_, [], L, CFG) -> L;
 test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
     if
 	(N rem 100) == 0 ->
@@ -121,7 +120,7 @@ test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
 	true -> ok
     end,
     Weight = 0,
-    {Hash, Leaf, Proof} = trie:get(Key, Loc, CFG),
+    {Hash, Leaf, Proof} = trie:get(Key, Loc, ?ID),
     true = verify:proof(Hash, Leaf, Proof, CFG), 
     test3b(N+1, T, Loc, CFG).
 
