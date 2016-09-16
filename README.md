@@ -59,9 +59,9 @@ trieID
 {leaf,0,1,5}
 12> verify:proof(RootHash, Leaf1, Proof1, CFG).
 true
-13> trie:garbage([Root1], CFG).
+13> trie:garbage([Root1], CFG).%This deletes everything that isn't a decendent of the stems in this list.
 ok
-14> trie:garbage_leaves([{leaf:path(Leaf1, KeyLength), Root1}], CFG).
+14> trie:garbage_leaves([{leaf:path(Leaf1, KeyLength), Root1}], CFG).%This deletes everything that isn't necessary to prove the Leaf-Root pairs in the list
 ok
 ```
 
