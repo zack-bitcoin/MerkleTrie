@@ -1,8 +1,8 @@
-Each stem should know how much of the money is in each of it's children. That way we can randomly select users weighted by their balance.
+Leaves don't need to know how much money they have because their parent stem knows.
+We need to be able to randomly choose someone weighted by their balance.
+We need a totally ram version of the trie and the ability to use the ram trie to update our hard drive trie efficiently. This is a batch-write.
+We should also be able to read a RAM trie out of the hard drive given a root and list of leaves.
 
-We should do writes and reads in batches.
-Writing crawls up the tree from the leaves, and calculates the new root hash as a last step. So the number of batch-writes is probably the same as the depth of the longest branch.
-reading crawls down the tree from the top.
-Each branch should be a different process fanning outward to all the leaves. Then the leaves should be collected into a hash-table in ram for easy access.
+
 
 
