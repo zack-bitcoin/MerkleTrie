@@ -28,13 +28,15 @@ trieID
 1
 6> KeyLength = 5. %maximum depth of the trie
 5
-7> trie_sup:start_link(Size, ID, WS, KeyLength).
+7> CFG = cfg:new(WS, KeyLength, Size, ID).
+{cfg,1,5,2,trieID}
+7> trie_sup:start_link(CFG).
 {ok,<0.56.0>}
 8> Weight = 1.
 1
-9> {Key1, Root1} = trie:put(Value, Root0, Weight, ID).
+9> {Key1, Root1} = trie:put(Value, Root0, Weight, CFG).
 {0,1}
-10> {RootHash, Value, Weight, Proof1} = trie:get(Key1, Root1, ID).
+10> {RootHash, Value, Weight, Proof1} = trie:get(Key1, Root1, CFG).
 {<<102,98,103,55,233,120,36,6,83,156,252,246>>,
  5,1,
  [{<<185,26,241,1,92,76,72,163,23,23,230,168>>,
@@ -55,11 +57,11 @@ trieID
    <<0,0,0,0,0,0,0,0,...>>}]}
 11> Leaf1 = leaf:new(Key1, Weight, Value).
 {leaf,0,1,5}
-12> verify:proof(RootHash, Leaf1, Proof1, WS, WS+KeyLength+Size, KeyLength).
+12> verify:proof(RootHash, Leaf1, Proof1, CFG).
 true
-13> trie:garbage([Root1], ID).
+13> trie:garbage([Root1], CFG).
 ok
-14> trie:garbage_leaves([{leaf:path(Leaf1, KeyLength), Root1}], ID).
+14> trie:garbage_leaves([{leaf:path(Leaf1, KeyLength), Root1}], CFG).
 ok
 ```
 

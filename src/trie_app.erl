@@ -12,7 +12,8 @@ start(normal, []) ->
     ID = trie01,
     WS = 1,
     KeyLength = 5,
-    trie_sup:start_link(Size, ID, WS, KeyLength).
+    CFG = cfg:new(WS, KeyLength, Size, ID),
+    trie_sup:start_link(CFG).
 
 stop(_State) ->
     ok.

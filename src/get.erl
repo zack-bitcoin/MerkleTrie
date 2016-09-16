@@ -1,23 +1,23 @@
 -module(get).
--export([get/5]).
+-export([get/3]).
 
-get(Path, Root, ID, WS, LS) -> %returns {RootHash, Path, Value, Proof}
-    S = stem:get(Root, WS, ID),
-    H = stem:hash(S, WS),
-    case get2(Path, S, [stem:hashes(S)], ID, WS, LS) of
+get(Path, Root, CFG) -> %returns {RootHash, Path, Value, Proof}
+    S = stem:get(Root, CFG),
+    H = stem:hash(S, CFG),
+    case get2(Path, S, [stem:hashes(S)], CFG) of
 	{A, Proof} -> {H, A, Proof};
 	empty -> empty
     end.       
-get2(<<N:4, Path/bitstring>>, Stem, Proof, ID, WS, LS) ->
+get2(<<N:4, Path/bitstring>>, Stem, Proof, CFG) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	0 -> %empty
 	    empty;
 	1 -> %another stem
-	    Next = stem:get(PN, WS, ID),
-	    get2(Path, Next, [stem:hashes(Next)|Proof], ID, WS, LS);
+	    Next = stem:get(PN, CFG),
+	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
 	2 -> %leaf
-	    Leaf2 = leaf:get(PN, WS, LS, ID),
+	    Leaf2 = leaf:get(PN, CFG),
 	    {Leaf2, Proof}
     end.

@@ -1,57 +1,54 @@
 -module(garbage).
--export([garbage/5, garbage_leaves/5]).
-garbage_leaves(KeeperLeaves, M, ID, WS, LS) ->
-    {KeeperStems, KL} = keepers_backwards(KeeperLeaves, ID, WS),
-    dump_bits(KL, M, ID, WS, LS),
-    delete_stuff(0, KL, ids:leaf(ID)),
-    delete_stuff(0, KeeperStems, ids:stem(ID)),
+-export([garbage/2, garbage_leaves/2]).
+garbage_leaves(KeeperLeaves, CFG) ->
+    {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
+    dump_bits(KL, CFG),
+    delete_stuff(0, KL, ids:leaf(CFG)),
+    delete_stuff(0, KeeperStems, ids:stem(CFG)),
     ok.
-garbage(KeeperRoots, M, ID, WS, LS) ->
-    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, ID, WS),
+garbage(KeeperRoots, CFG) ->
+    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
     io:fwrite(integer_to_list(length(KeeperLeaves))),
-    delete_stuff(0, KeeperStems, ids:stem(ID)),
-    delete_stuff(0, KeeperLeaves, ids:leaf(ID)),
-    dump_bits(KeeperLeaves, M, ID, WS, LS),
+    delete_stuff(0, KeeperStems, ids:stem(CFG)),
+    delete_stuff(0, KeeperLeaves, ids:leaf(CFG)),
+    dump_bits(KeeperLeaves, CFG),
     ok.
-dump_bits([], _, _, _, _) -> ok;
-dump_bits([K|T], M, ID, WS, LS) -> 
-    Leaf = leaf:get(K, WS, LS, ID),
-    Path = leaf:path(Leaf, M),
-    NN = M*8,
+dump_bits([], _) -> ok;
+dump_bits([K|T], CFG) -> 
+    Leaf = leaf:get(K, CFG),
+    Path = leaf:path(Leaf, CFG),
+    NN = cfg:path(CFG)*8,
     <<P:NN>> = Path,
-    dump_bits:delete(ids:bits(ID), P),
-    dump_bits(T, M, ID, WS, LS).
-keepers_backwards(X, ID, WS) -> keepers_backwards(X, {[],[]}, ID, WS).
-keepers_backwards([], X, _, _) -> X;
-keepers_backwards([{Path, Root}|Leaves], {KS, KL}, ID, WS) -> 
-    S = stem:get(Root, WS, ID),
-    {Stems, Leaf} = kb2(Path, S, [Root], ID, WS),
+    dump_bits:delete(ids:bits(CFG), P),
+    dump_bits(T, CFG).
+keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
+keepers_backwards([], X, _) -> X;
+keepers_backwards([{Path, Root}|Leaves], {KS, KL}, CFG) -> 
+    S = stem:get(Root, CFG),
+    {Stems, Leaf} = kb2(Path, S, [Root], CFG),
     keepers_backwards(Leaves, 
 		      {append_no_repeats(KS, Stems), 
-		       append_no_repeats([Leaf], KL)}, 
-		      ID, 
-		      WS).
-kb2(<<N:4, Path/bitstring>>, Stem, Keepers, ID, WS) ->
+		       append_no_repeats([Leaf], KL)},
+		      CFG).
+kb2(<<N:4, Path/bitstring>>, Stem, Keepers, CFG) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	1 -> %another stem
-	    Next = stem:get(PN, WS, ID),
-	    kb2(Path, Next, append_no_repeats([PN], Keepers), ID, WS);
+	    Next = stem:get(PN, CFG),
+	    kb2(Path, Next, append_no_repeats([PN], Keepers), CFG);
 	2 -> %leaf
 	    {Keepers, PN}
     end.
-    
-
-keepers([], _, _) -> {[], []};
-keepers([R|Roots], ID, WS) ->
-    case stem:get(R, WS, ID) of
+keepers([], _) -> {[], []};
+keepers([R|Roots], CFG) ->
+    case stem:get(R, CFG) of
 	error -> 
-	    {A, B} = keepers(Roots, ID, WS),
+	    {A, B} = keepers(Roots, CFG),
 	    {[R|A],B};
 	S -> 
 	    {X, Y, MoreRoots} = stem_keepers(S),
-	    {A, B} = keepers(MoreRoots++Roots, ID, WS),
+	    {A, B} = keepers(MoreRoots++Roots, CFG),
 	    {[R|append_no_repeats(X, A)],
 	     append_no_repeats(Y, B)}
     end.
