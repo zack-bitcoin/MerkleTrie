@@ -1,32 +1,26 @@
 -module(garbage).
--export([garbage/6, garbage_leaves/6]).
-garbage_leaves(KeeperLeaves, M, ID, WS, LS, HashSize) ->
+-export([garbage/5, garbage_leaves/5]).
+garbage_leaves(KeeperLeaves, M, ID, WS, LS) ->
     {KeeperStems, KL} = keepers_backwards(KeeperLeaves, ID, WS),
-    dump_bits(KL, M, ID, WS, LS, HashSize),
+    dump_bits(KL, M, ID, WS, LS),
     delete_stuff(0, KL, ids:leaf(ID)),
     delete_stuff(0, KeeperStems, ids:stem(ID)),
     ok.
-garbage(KeeperRoots, M, ID, WS, LS, HashSize) ->
+garbage(KeeperRoots, M, ID, WS, LS) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, ID, WS),
     io:fwrite(integer_to_list(length(KeeperLeaves))),
     delete_stuff(0, KeeperStems, ids:stem(ID)),
     delete_stuff(0, KeeperLeaves, ids:leaf(ID)),
-    dump_bits(KeeperLeaves, M, ID, WS, LS, HashSize),
+    dump_bits(KeeperLeaves, M, ID, WS, LS),
     ok.
-dump_bits([], _, _, _, _, _) -> ok;
-dump_bits([K|T], N, ID, WS, LS, HashSize) -> 
+dump_bits([], _, _, _, _) -> ok;
+dump_bits([K|T], M, ID, WS, LS) -> 
     Leaf = leaf:get(K, WS, LS, ID),
-    Path = leaf:path(Leaf, HashSize),
-    NN = N*8,
-    %<<P:NN>> = trie:flip_bytes(Path),
+    Path = leaf:path(Leaf, M),
+    NN = M*8,
     <<P:NN>> = Path,
     dump_bits:delete(ids:bits(ID), P),
-    dump_bits(T, N, ID, WS, LS, HashSize).
-    %<<Location:N, _/bitstring>> = dump:get(K, ids:leaf(ID)),
-    %<<L:N>> = trie:flip_bytes(<<Location:N>>),
-    %%dump_bits:delete(trie_bits, L),
-    %dump_bits:delete(ids:bits(ID), L),
-    %dump_bits(T, N, ID).
+    dump_bits(T, M, ID, WS, LS).
 keepers_backwards(X, ID, WS) -> keepers_backwards(X, {[],[]}, ID, WS).
 keepers_backwards([], X, _, _) -> X;
 keepers_backwards([{Path, Root}|Leaves], {KS, KL}, ID, WS) -> 

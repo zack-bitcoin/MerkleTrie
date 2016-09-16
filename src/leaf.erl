@@ -1,6 +1,6 @@
 -module(leaf).
 -compile(export_all).
--export([path/2,new/3,key/1,value/1,weight/1,put/4,hash/3,path_maker/2,serialize/3,deserialize/3]).
+-export([path/2,new/3,key/1,value/1,weight/1,put/4,hash/3,path_maker/2,serialize/3]).
 -record(leaf, {key = 0, weight = 0, value = 0}).
 serialize(X, WS, LS) ->
     %L = LS*8,
@@ -16,7 +16,7 @@ deserialize(A, WS, LS) ->
 new(Key, Weight, Value) ->
     #leaf{key = Key, weight = Weight, value = Value}. 
 key(L) -> L#leaf.key.
-path(L, S) ->%S is the size of hash:doit(1)'s output in bytes.
+path(L, S) ->%S is the size of the path in bytes.
     K = key(L),
     path_maker(K, S).
 path_maker(K, S) ->

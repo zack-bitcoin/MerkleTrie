@@ -16,21 +16,28 @@ Now to run the software simply: ```sh start.sh```
 Example usage:
 
 ```
-1> Value  = <<27,27>>.
-<<"\e\e">>
+1> Value = 5.
+5
 2> Root0 = 0.
 0
 3> ID = trieID.
-4> Size = 2, %this means that each object being stored is 2 bytes big, 
-5> Max = 20000000000, %and we can hold up to 20 billion objects.
-6> trie_sup:start_link(Size, Max, ID). 
-7> {Key1, Root1} = trie:put(Value, Root0, ID).
-{1000,7}
-8> {A, Value, B} = trie:get(Key1, Root1, ID).
-{<<96,197,126,39,139,128,190,152,237,187,104,211>>,
- <<"\e\e">>,
- [{<<155,11,34,50,227,53,170,141,122,216,37,246>>,
-   <<0,0,0,0,0,0,0,0,0,0,0,0>>,
+trieID
+4> Size = 2.
+2
+5> WS = 1. %number of bytes to store weight
+1
+6> KeyLength = 5. %maximum depth of the trie
+5
+7> trie_sup:start_link(Size, ID, WS, KeyLength).
+{ok,<0.56.0>}
+8> Weight = 1.
+1
+9> {Key1, Root1} = trie:put(Value, Root0, Weight, ID).
+{0,1}
+10> {RootHash, Value, Weight, Proof1} = trie:get(Key1, Root1, ID).
+{<<102,98,103,55,233,120,36,6,83,156,252,246>>,
+ 5,1,
+ [{<<185,26,241,1,92,76,72,163,23,23,230,168>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
@@ -44,12 +51,15 @@ Example usage:
    <<0,0,0,0,0,0,0,0,0,0,0,0>>,
    <<0,0,0,0,0,0,0,0,0,0,0,...>>,
    <<0,0,0,0,0,0,0,0,0,0,...>>,
-   <<0,0,0,0,0,0,0,0,0,...>>}]}
-9> verify:proof(A, trie:to_path(Key1, ID), Value, B).
+   <<0,0,0,0,0,0,0,0,0,...>>,
+   <<0,0,0,0,0,0,0,0,...>>}]}
+11> Leaf1 = leaf:new(Key1, Weight, Value).
+{leaf,0,1,5}
+12> verify:proof(RootHash, Leaf1, Proof1, WS, WS+KeyLength+Size, KeyLength).
 true
-10> trie:garbage([Root1], ID). %this deletes everything that isn't a branch from one of the roots in the list.
+13> trie:garbage([Root1], ID).
 ok
-11> trie:garbage_leaves([{trie:to_path(Key1, ID), Root1}], ID). %this deletes everything that isn't needed to prove the existence of the leaf at Key1.
+14> trie:garbage_leaves([{leaf:path(Leaf1, KeyLength), Root1}], ID).
 ok
 ```
 

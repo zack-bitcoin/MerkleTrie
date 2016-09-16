@@ -100,7 +100,7 @@ test2(WS, LS, M) ->
 
 test3(WS, LS, M) -> 
     Loc = 0,
-    Times = 1000,
+    Times = 10000,
     {Keys, NewLoc} = test3a(Times, [], Loc, WS),
     test3b(1, Keys, NewLoc, WS, LS, M).
 test3a(0, Keys, L, _) -> {Keys, L};
@@ -184,7 +184,7 @@ test5(WS, LS, M) ->
     Lpath1 = leaf:path(Leaf1, M),
     X = [{Lpath1, Root4}],
     io:fwrite("garbage leaves\n"),
-    garbage:garbage_leaves(X, trie:m(?ID), ?ID, WS, LS, M),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    garbage:garbage_leaves(X, trie:m(?ID), ?ID, WS, LS),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, ?ID, WS, LS),
@@ -220,7 +220,7 @@ test6(WS, LS, M) ->
     GL = [{leaf:path(Leafa, M), Root1}],
     {Hash, _, _} = store:store(Leafc, Root1, ?ID, WS, LS, M),
     {_, Leafa, _} = get:get(leaf:path(Leafa, M), Root1, ?ID, WS, LS),
-    garbage:garbage_leaves(GL, trie:m(?ID), ?ID, WS, LS, M),
+    garbage:garbage_leaves(GL, trie:m(?ID), ?ID, WS, LS),
     {_, Leafa, _} = get:get(leaf:path(Leafa, M), Root1, ?ID, WS, LS),
     %it is over-writing the old leaf.
     {Hash, _, _} = store:store(Leafc, Root1, ?ID, WS, LS, M),

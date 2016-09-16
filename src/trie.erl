@@ -24,10 +24,10 @@ handle_call({get, Key, Root}, _From, {Size, M, ID, WS}) ->
     {reply, {RootHash, leaf:value(Leaf), leaf:weight(Leaf), Proof}, {Size, M, ID, WS}};
 handle_call({garbage, Keepers}, _From, {Size, M, ID, WS}) -> 
     io:fwrite("gabage 2\n"),
-    garbage:garbage(Keepers, M, ID, WS, M+Size+WS, M),
+    garbage:garbage(Keepers, M, ID, WS, M+Size+WS),
     {reply, ok, {Size, M, ID, WS}};
 handle_call({garbage_leaves, KLS}, _From, {Size, M, ID, WS}) -> 
-    garbage:garbage_leaves(KLS, M, ID, WS),
+    garbage:garbage_leaves(KLS, M, ID, WS, M+Size+WS),
     {reply, ok, {Size, M, ID, WS}};
 handle_call(ws, _From, {Size, M, ID, WS}) -> 
     {reply, WS, {Size, M, ID, WS}};
