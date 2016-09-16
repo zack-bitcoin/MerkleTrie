@@ -1,9 +1,7 @@
 -module(leaf).
--compile(export_all).
--export([path/2,new/3,key/1,value/1,weight/1,put/4,hash/3,path_maker/2,serialize/3]).
+-export([get/4,path/2,new/3,key/1,value/1,weight/1,put/4,hash/3,path_maker/2,serialize/3]).
 -record(leaf, {key = 0, weight = 0, value = 0}).
 serialize(X, WS, LS) ->
-    %L = LS*8,
     W = WS*8,
     L = (LS * 8) - W - 40,
     <<(X#leaf.key):40, (X#leaf.weight):W, (X#leaf.value):L>>.
@@ -12,7 +10,6 @@ deserialize(A, WS, LS) ->
     L = (LS * 8) - W - 40,
     <<Key:40, Weight:W, Value:L>> = A,
     #leaf{key = Key, weight = Weight, value = Value}. 
-    
 new(Key, Weight, Value) ->
     #leaf{key = Key, weight = Weight, value = Value}. 
 key(L) -> L#leaf.key.
