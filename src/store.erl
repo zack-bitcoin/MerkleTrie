@@ -7,15 +7,20 @@ store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
     LH = leaf:hash(Leaf, CFG),
     Weight = leaf:weight(Leaf),
     P = leaf:path(Leaf, CFG),
-    case find_branch(P, 0, leaf:value(Leaf), Root, [], CFG) of
+    B = case get_branch(P, 0, leaf:value(Leaf), Root, [], CFG) of
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
-	    %need to add 1 or more stems to Branch to make NewBranch.
-	    H = more_branch(Leaf, LP2, Leaf2,length(Branch),CFG),
-	    store_branch(H++Branch, P, 2, LPointer, LH, Weight, CFG);
-	Branch -> %overwrite
-	    store_branch(Branch, P, 2, LPointer, LH, Weight, CFG)
-    end.
-find_branch(Path, N, Value, Parent, Trail, CFG) ->
+	    %need to add 1 or more stems.
+		{A, N2} = path_match(P, leaf:path(Leaf2, CFG), 0),
+		[H|T] = empty_stems(A-length(Branch)+1),
+		LH2 = leaf:hash(Leaf2, CFG),
+		W2 = leaf:weight(Leaf2),
+		H2 = stem:add(H, N2, 2, LP2, W2, LH2),
+		[H2|T]++Branch;
+	    Branch -> %overwrite
+		Branch
+    end,
+    store_branch(B, P, 2, LPointer, LH, Weight, CFG).
+get_branch(Path, N, Value, Parent, Trail, CFG) ->
     %gather the branch as it currently looks.
     NN = 4*N,
     <<_:NN, A:4, _/bitstring>> = Path,
@@ -27,7 +32,7 @@ find_branch(Path, N, Value, Parent, Trail, CFG) ->
 	0 ->%empty
 	    RP;
 	1 ->%another stem
-	    find_branch(Path, M, Value, Pointer, RP, CFG);
+	    get_branch(Path, M, Value, Pointer, RP, CFG);
 	2 ->%a leaf. 
 	    Leaf = leaf:get(Pointer, CFG),
 	    case leaf:path(Leaf, CFG) of
@@ -38,9 +43,12 @@ find_branch(Path, N, Value, Parent, Trail, CFG) ->
 		    {Leaf, Pointer, RP}
 	    end
     end.
-store_branch([], Path, _Type, Pointer, _, _, CFG) ->
-    {Hash, _, Proof} = get:get(Path, Pointer, CFG),
-    {Hash, Pointer, Proof};
+store_branch([], Path, _, Pointer, _, _, CFG) ->
+    %Instead of getting the thing, we can build it up while doing store.
+    case get:get(Path, Pointer, CFG) of
+	{Hash, _, Proof} -> {Hash, Pointer, Proof};
+	empty -> store_branch([], Path, 0, Pointer, 0, 0, CFG)
+    end;
 store_branch([B|Branch], Path, Type, Pointer, Hash, Weight, CFG) ->
     S = length(Branch),
     NN = 4*S,
@@ -53,19 +61,13 @@ store_branch([B|Branch], Path, Type, Pointer, Hash, Weight, CFG) ->
 add(L) -> add(L, 0).
 add([], X) -> X;
 add([H|T], X) -> add(T, H+X).
-more_branch(Leaf, LP2, Leaf2, B, CFG) ->
-    {A, N2, Weight2} = more_branch3(Leaf, Leaf2, 0, CFG),
-    [H|T] = more_branch2(A-B+1),
-    LH2 = leaf:hash(Leaf2, CFG),
-    H2 = stem:add(H, N2, 2, LP2, Weight2, LH2),
-    [H2|T].
-more_branch3(Leaf, Leaf2, N, CFG) -> %returns {convergense_length, next nibblei, Weight}
+path_match(LP, LP2, N) -> %returns {convergense_length, next nibble}
     NN = N*4,
-    <<_:NN, A:4, _/bitstring>> = leaf:path(Leaf, CFG),
-    <<_:NN, B:4, _/bitstring>> = leaf:path(Leaf2, CFG),
+    <<_:NN, A:4, _/bitstring>> = LP,
+    <<_:NN, B:4, _/bitstring>> = LP2,
     if
-	A == B -> more_branch3(Leaf, Leaf2, N+1, CFG);
-	true -> {N, B, leaf:weight(Leaf2)}%+leaf:weight(Leaf)}
+	A == B -> path_match(LP, LP2, N+1);
+	true -> {N, B}%+leaf:weight(Leaf)}
     end.
-more_branch2(0) -> [];
-more_branch2(N) -> [stem:new_empty()|more_branch2(N-1)].
+empty_stems(0) -> [];
+empty_stems(N) -> [stem:new_empty()|empty_stems(N-1)].

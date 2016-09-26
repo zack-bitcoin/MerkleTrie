@@ -82,6 +82,7 @@ test1(CFG) ->
     Leafcc = leaf:new(L3abc, Weight, L3value), 
     {_, Loc7, _} = store:store(Leafcc, Loc6, CFG),
     trie:garbage([Loc7], ?ID),
+    trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
     0 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
@@ -186,6 +187,7 @@ test5(CFG) ->
     garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
+    timer:sleep(7000),
     {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
     verify:proof(Hash3, Leaf1, Proof, CFG),
     ok.
@@ -220,6 +222,7 @@ test6(CFG) ->
     {Hash, _, _} = store:store(Leafc, Root1, CFG),
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
     garbage:garbage_leaves(GL, CFG),
+    timer:sleep(7000),
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
     %it is over-writing the old leaf.
     {Hash, _, _} = store:store(Leafc, Root1, CFG),

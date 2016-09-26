@@ -19,7 +19,7 @@ dump_bits([K|T], CFG) ->
     Path = leaf:path(Leaf, CFG),
     NN = cfg:path(CFG)*8,
     <<P:NN>> = Path,
-    dump_bits:delete(ids:bits(CFG), P),
+    bits:delete(ids:bits(CFG), P),
     dump_bits(T, CFG).
 keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
 keepers_backwards([], X, _) -> X;

@@ -68,13 +68,7 @@ empty_hashes() ->
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
-empty_root(CFG) ->
-    P = empty_tuple(),
-    T = empty_tuple(),
-    H = empty_hashes(),
-    W = empty_tuple(),
-    S = #stem{types = T, pointers = P, hashes = H, weights = W},
-    serialize(S, CFG).
+empty_root(CFG) -> serialize(new_empty(), CFG).
 
 hash(S, CFG) when is_binary(S) ->
     hash(deserialize(S, CFG), CFG);
