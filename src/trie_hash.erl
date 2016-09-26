@@ -1,4 +1,4 @@
--module(hash).
+-module(trie_hash).
 -export([doit/1,hash/1,hash_depth/0]).
 
 hash(S) -> 

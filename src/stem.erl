@@ -52,7 +52,7 @@ serialize(P, H, T, W, WS, Path, N) -> %WS is the size of the weight element in b
     << T1:2, P1:Path, W1:WS, H1/binary, D/bitstring >>.
 deserialize(B, CFG) -> 
     X = empty_tuple(),
-    deserialize(1,X,X,X,cfg:weight(CFG)*8,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
+    deserialize(1,X,X,X,cfg:weight(CFG)*8,cfg:path(CFG)*8,trie_hash:hash_depth()*8,X, B).
 deserialize(17, T,P,W,_WS,_,_,H, <<>>) -> 
     #stem{types = T, pointers = P, hashes = H, weights = W};
 deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) ->
@@ -63,7 +63,7 @@ deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) ->
     H1 = setelement(N, H0, <<H:HashDepth>>),
     deserialize(N+1, T1, P1, W1, WS, Path, HashDepth,H1, D).
 empty_hashes() ->
-    X = hash:hash_depth()*8,
+    X = trie_hash:hash_depth()*8,
     {<<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
@@ -77,7 +77,7 @@ hash(S, _) when is_tuple(S) and (size(S) == 16)->
 hash(S, _) ->    
     H = S#stem.hashes,
     hash2(1, H, <<>>).
-hash2(17, _, X) -> hash:doit(X);
+hash2(17, _, X) -> trie_hash:doit(X);
 hash2(N, H, X) ->
     A = element(N, H),
     12 = size(A),
