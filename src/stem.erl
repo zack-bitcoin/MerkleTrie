@@ -1,7 +1,7 @@
 %The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
 
 -module(stem).
--export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1]).
+-export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1,weight/1]).
 -record(stem, {types = empty_tuple(), pointers = empty_tuple(), weights = empty_tuple(), hashes = empty_hashes()}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
 add(S, N, T, P, W, H) ->
@@ -25,6 +25,10 @@ pointers(R) -> R#stem.pointers.
 types(R) -> R#stem.types.
 hashes(R) -> R#stem.hashes.
 weights(R) -> R#stem.weights.
+weight(R) -> sum_list(tuple_to_list(weights(R))).
+sum_list(L) -> sum_list(L, 0).
+sum_list([], X) -> X;
+sum_list([H|T], X) -> sum_list(T, X+H).
 pointer(N, R) ->
     T = pointers(R),
     element(N, T).

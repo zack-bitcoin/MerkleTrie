@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, cfg/1,get/3,put/4,garbage/2,garbage_leaves/2]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, cfg/1,get/3,put/4,garbage/2,garbage_leaves/2,random_get/3]).
 init(CFG) -> 
     StemID = ids:stem(CFG),
     ReplaceStem = <<0:(8*(dump:word(StemID)))>>,
@@ -26,9 +26,12 @@ handle_call({put, Value, Root, Weight}, _From, CFG) ->
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),
     bits:write(ID),
     {reply, {Key, NewRoot}, CFG};
-handle_call({get, Key, Root}, _From, CFG) -> 
+handle_call({random_get, Seed, RootPointer}, _From, CFG) ->
+    {RH, L, Proof} = random_get:get(Seed, RootPointer, CFG),
+    {reply, {RH, L, Proof}, CFG};
+handle_call({get, Key, RootPointer}, _From, CFG) -> 
     P = leaf:path_maker(Key, CFG),
-    {RootHash, Leaf, Proof} = get:get(P, Root, CFG),
+    {RootHash, Leaf, Proof} = get:get(P, RootPointer, CFG),
     {reply, {RootHash, Leaf, Proof}, CFG};
 handle_call({garbage, Keepers}, _From, CFG) -> 
     io:fwrite("gabage 2\n"),
@@ -43,6 +46,7 @@ cfg(ID) when is_atom(ID) -> gen_server:call({global, ids:main_id(ID)}, cfg).
 put(Value, Root, Weight, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {put, Value, Root, Weight}).
 get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+random_get(Seed, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {random_get, Seed, Root}).
 garbage(Keepers, ID) -> 
     io:fwrite("trie garbage \n"),
     gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).

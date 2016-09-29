@@ -1,7 +1,6 @@
 -module(cfg).
 -compile(export_all).
--record(cfg, {weight, path, value, id, trie = stem:new_empty()}).
-
+-record(cfg, {weight, path, value, id, trie = stem:new_empty()}). 
 new(W, P, V, ID) -> #cfg{weight = W, path = P, value = V, id = ID}.
 weight(X) -> X#cfg.weight.%how many bytes to store the weight
 path(X) -> X#cfg.path. %how many bytes to store the path (defaul is 5)

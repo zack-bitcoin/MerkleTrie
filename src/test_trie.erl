@@ -91,7 +91,7 @@ test1(CFG) ->
 
 test2(CFG) ->
     Loc = 0,
-    L = <<0:4,0:4,0:4,0:4,0,0,0>>,
+    %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     <<La:16>> = <<255, 0>>,
     Weight = 0,
     Leaf = leaf:new(0, Weight, La),
@@ -101,7 +101,10 @@ test3(CFG) ->
     Loc = 0,
     Times = 10000,
     {Keys, NewLoc} = test3a(Times, [], Loc),
-    test3b(1, Keys, NewLoc, CFG).
+    test3b(1, Keys, NewLoc, CFG),
+    Seed = 0,
+    {_, {leaf,625,1,375}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
+    %io:fwrite(X).
 test3a(0, Keys, L) -> {Keys, L};
 test3a(N, Keys, Loc) -> %load up the trie
     if
@@ -110,9 +113,9 @@ test3a(N, Keys, Loc) -> %load up the trie
 	    io:fwrite("\n");
 	true -> ok
     end,
-    {Key, NewLoc} = trie:put(N, Loc, 0, ?ID),
+    {Key, NewLoc} = trie:put(N, Loc, 1, ?ID),
     test3a(N-1, [Key|Keys], NewLoc).
-test3b(_, [], L, CFG) -> L;
+test3b(_, [], L, _CFG) -> L;
 test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
     if
 	(N rem 100) == 0 ->
@@ -120,7 +123,6 @@ test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
 	    io:fwrite("\n");
 	true -> ok
     end,
-    Weight = 0,
     {Hash, Leaf, Proof} = trie:get(Key, Loc, ?ID),
     true = verify:proof(Hash, Leaf, Proof, CFG), 
     test3b(N+1, T, Loc, CFG).
