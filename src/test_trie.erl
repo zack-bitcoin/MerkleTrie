@@ -103,7 +103,7 @@ test3(CFG) ->
     {Keys, NewLoc} = test3a(Times, [], Loc),
     test3b(1, Keys, NewLoc, CFG),
     Seed = 0,
-    {_, {leaf,625,1,375}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
+    {_, {leaf,8210,1,1790}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
     %io:fwrite(X).
 test3a(0, Keys, L) -> {Keys, L};
 test3a(N, Keys, Loc) -> %load up the trie
