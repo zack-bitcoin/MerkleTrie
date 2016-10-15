@@ -29,7 +29,7 @@ get(Pointer, CFG) ->
     L = dump:get(Pointer, ids:leaf(CFG)),
     deserialize(L, CFG).
 hash(L, CFG) ->   
-    trie_hash:doit(serialize(L, CFG)).
+    hash:doit(serialize(L, CFG)).
 flip_bytes(X) -> flip_bytes(X, <<>>).
 flip_bytes(<<>>, X) -> X;
 flip_bytes(<<N:8, T/bitstring>>, X) -> 

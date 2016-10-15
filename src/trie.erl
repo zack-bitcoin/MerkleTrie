@@ -6,7 +6,7 @@ init(CFG) ->
     ReplaceStem = <<0:(8*(dump:word(StemID)))>>,
     dump:put(ReplaceStem, StemID),
     {ok, CFG}.
-start_link(CFG) -> %keylength, or M is the size outputed by trie_hash:doit(_). 
+start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, _) -> io:format("died!"), ok.

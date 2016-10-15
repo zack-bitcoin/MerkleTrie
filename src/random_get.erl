@@ -2,8 +2,8 @@
 -export([get/3]).
 
 get(Seed, Root, CFG) ->
-    HD = trie_hash:hash_depth() * 8,
-    <<P:HD>> = trie_hash:doit(Seed),
+    HD = hash:hash_depth() * 8,
+    <<P:HD>> = hash:doit(Seed),
     S = stem:get(Root, CFG),
     TotalWeight = stem:weight(S),
     %io:fwrite(integer_to_list(TotalWeight)),
