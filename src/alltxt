@@ -1,0 +1,869 @@
+-module(cfg).
+-compile(export_all).
+-record(cfg, {weight, path, value, id, trie = stem:new_empty()}). 
+new(W, P, V, ID) -> #cfg{weight = W, path = P, value = V, id = ID}.
+weight(X) -> X#cfg.weight.%how many bytes to store the weight (The weighting is used for weighted random accesses)
+path(X) -> X#cfg.path. %how many bytes to store the path (defaul is 5)
+value(X) -> X#cfg.value.%how many bytes to store the value.
+leaf(X) -> weight(X) + path(X) + value(X).%eventually we will remove weight from here.
+id(X) -> X#cfg.id.
+trie(X) -> X#cfg.trie. 
+-module(garbage).
+-export([garbage/2, garbage_leaves/2]).
+garbage_leaves(KeeperLeaves, CFG) ->
+    {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
+    dump_bits(KL, CFG),
+    delete_stuff(0, KL, ids:leaf(CFG)),
+    delete_stuff(0, KeeperStems, ids:stem(CFG)),
+    ok.
+garbage(KeeperRoots, CFG) ->
+    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
+    io:fwrite(integer_to_list(length(KeeperLeaves))),
+    delete_stuff(0, KeeperStems, ids:stem(CFG)),
+    delete_stuff(0, KeeperLeaves, ids:leaf(CFG)),
+    dump_bits(KeeperLeaves, CFG),
+    ok.
+dump_bits([], _) -> ok;
+dump_bits([K|T], CFG) -> 
+    Leaf = leaf:get(K, CFG),
+    Path = leaf:path(Leaf, CFG),
+    NN = cfg:path(CFG)*8,
+    <<P:NN>> = Path,
+    bits:delete(ids:bits(CFG), P),
+    dump_bits(T, CFG).
+keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
+keepers_backwards([], X, _) -> X;
+keepers_backwards([{Path, Root}|Leaves], {KS, KL}, CFG) -> 
+    S = stem:get(Root, CFG),
+    {Stems, Leaf} = kb2(Path, S, [Root], CFG),
+    keepers_backwards(Leaves, 
+		      {append_no_repeats(KS, Stems), 
+		       append_no_repeats([Leaf], KL)},
+		      CFG).
+kb2(<<N:4, Path/bitstring>>, Stem, Keepers, CFG) ->
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
+    case NextType of
+	1 -> %another stem
+	    Next = stem:get(PN, CFG),
+	    kb2(Path, Next, append_no_repeats([PN], Keepers), CFG);
+	2 -> %leaf
+	    {Keepers, PN}
+    end.
+keepers([], _) -> {[], []};
+keepers([R|Roots], CFG) ->
+    case stem:get(R, CFG) of
+	error -> 
+	    {A, B} = keepers(Roots, CFG),
+	    {[R|A],B};
+	S -> 
+	    {X, Y, MoreRoots} = stem_keepers(S),
+	    {A, B} = keepers(MoreRoots++Roots, CFG),
+	    {[R|append_no_repeats(X, A)],
+	     append_no_repeats(Y, B)}
+    end.
+append_no_repeats([],X) -> X;
+append_no_repeats([A|Ta],X) -> 
+    Bool2 = in_list(A, X),
+    if
+	Bool2 -> append_no_repeats(Ta, X);
+	true -> append_no_repeats(Ta, [A|X])
+    end.
+stem_keepers(S) ->
+    stem_keepers(S, 1, [], [], []).
+stem_keepers(_, 17, Stems, Leaves, Roots) -> {Stems,Leaves, Roots};
+stem_keepers(S, N, Stems, Leaves, MoreRoots) ->
+    P = stem:pointer(N, S),
+    {NewStems, NewLeaves, NewMoreRoots} = 
+	case stem:type(N, S) of
+	    0 -> {Stems, Leaves, MoreRoots};
+	    1 -> 
+		{[P|Stems], Leaves,[P|MoreRoots]};
+	    2 -> {Stems, [P|Leaves], MoreRoots}
+	end,
+    stem_keepers(S, N+1, NewStems, NewLeaves, NewMoreRoots).
+in_list(X, [X|_]) -> true;
+in_list(_, []) -> false;
+in_list(X, [_|Z]) -> in_list(X, Z).
+delete_stuff(N, Keepers, ID) ->
+    S = dump:highest(ID) div dump:word(ID),
+    delete_stuff(S, N, Keepers, ID).
+delete_stuff(S, N, Keepers, Id) ->
+    Bool = in_list(N, Keepers),
+    if
+	N>=S -> ok;
+	Bool ->
+	    delete_stuff(S, N+1, Keepers, Id);
+	true ->
+	    dump:delete(N, Id),
+	    delete_stuff(S, N+1, Keepers, Id)
+    end.
+-module(get).
+-export([get/3]).
+
+get(Path, Root, CFG) -> %returns {RootHash, Path, Value, Proof}
+    S = stem:get(Root, CFG),
+    H = stem:hash(S, CFG),
+    case get2(Path, S, [stem:hashes(S)], CFG) of
+	{A, Proof} -> {H, A, Proof};
+	empty -> empty
+    end.       
+get2(<<N:4, Path/bitstring>>, Stem, Proof, CFG) ->
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
+    case NextType of
+	0 -> %empty
+	    empty;
+	1 -> %another stem
+	    Next = stem:get(PN, CFG),
+	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
+	2 -> %leaf
+	    Leaf2 = leaf:get(PN, CFG),
+	    {Leaf2, Proof}
+    end.
+-module(ids).
+-export([main_id/1, leaf/1, main/1, stem/1, bits/1, ram/1]).
+
+
+leaf(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_leaf").
+stem(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_stem").
+main(CFG) -> main_id(cfg:id(CFG)).
+bits(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_bits").
+main_id(ID) -> list_to_atom(atom_to_list(ID) ++ "_main").
+ram(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_ram").
+-module(leaf).
+-compile(export_all).
+-record(leaf, {key = 0, weight = 0, value = 0}).
+serialize(X, CFG) ->
+    W = cfg:weight(CFG)*8,
+    L = cfg:value(CFG) * 8,
+    <<(X#leaf.key):40, (X#leaf.weight):W, (X#leaf.value):L>>.
+deserialize(A, CFG) ->
+    W = cfg:weight(CFG) * 8,
+    L = cfg:value(CFG) * 8,
+    <<Key:40, Weight:W, Value:L>> = A,
+    #leaf{key = Key, weight = Weight, value = Value}. 
+new(Key, Weight, Value) ->
+    #leaf{key = Key, weight = Weight, value = Value}. 
+key(L) -> L#leaf.key.
+path(L, CFG) ->%S is the size of the path in bytes.
+    K = key(L),
+    path_maker(K, CFG).
+path_maker(K, CFG) ->
+    T = cfg:path(CFG)*8,
+    flip_bytes(<<K:T>>).
+value(L) -> L#leaf.value.
+weight(L) ->
+    L#leaf.weight.
+put(Leaf, CFG) ->
+    dump:put(serialize(Leaf, CFG), 
+	     ids:leaf(CFG)).
+get(Pointer, CFG) ->
+    L = dump:get(Pointer, ids:leaf(CFG)),
+    deserialize(L, CFG).
+hash(L, CFG) ->   
+    hash:doit(serialize(L, CFG)).
+flip_bytes(X) -> flip_bytes(X, <<>>).
+flip_bytes(<<>>, X) -> X;
+flip_bytes(<<N:8, T/bitstring>>, X) -> 
+    flip_bytes(T, <<N:8, X/bitstring>>).
+-module(merge).
+-export([doit/4]).
+
+doit(L, H, R, CFG) -> 
+    %first, in ram, generate the proof trie for the new data to calculate the new state root.
+    %then, starting from the leaves, put the new trie onto the database, Only replace existing stems and leaves, don't add new stems or leaves.
+    Root = dump:get(R, ids:stem(CFG)),
+    H0 = stem:hash(Root, CFG),
+    {H2, R2} = helper(L, H0, R, CFG),
+    H = H2,
+    R2.
+helper([], H, R, _) -> {H, R};
+helper([Leaf|T], _H, R, CFG) -> 
+    {H2, R2, _} = store:store(Leaf, R, CFG),
+    helper(T, H2, R2, CFG).
+
+    
+-module(random_get).
+-export([get/3]).
+
+get(Seed, Root, CFG) ->
+    HD = hash:hash_depth() * 8,
+    <<P:HD>> = hash:doit(Seed),
+    S = stem:get(Root, CFG),
+    TotalWeight = stem:weight(S),
+    %io:fwrite(integer_to_list(TotalWeight)),
+    Q = P rem TotalWeight,
+    H = stem:hash(S, CFG),
+    {Leaf, Proof} = get2(Q, S, [stem:hashes(S)], CFG),
+    {H, Leaf, Proof}.
+    
+get2(Select, Stem, Proof, CFG) ->
+    Weights = stem:weights(Stem),
+    {N, NewSelect} = find_n(Select, Weights),
+    NextType = stem:type(N+1, Stem),
+    Pointer = stem:pointer(N+1, Stem),
+    case NextType of
+	0 -> %empty
+	    {error, 0, "stems say incorrect weights on branches"};
+	1 -> 
+	    NewStem = stem:get(Pointer, CFG),
+	    get2(NewSelect, NewStem, [stem:hashes(NewStem)|Proof], CFG);
+	2 ->
+	    Leaf = leaf:get(Pointer, CFG),
+	    {Leaf, Proof}
+    end.
+
+find_n(Select, Weights) ->
+   W = tuple_to_list(Weights), 
+   find_n2(Select, W, 0).
+find_n2(Select, [A], 15) ->
+    true = Select =< A,
+    {15, Select}; 
+find_n2(Select, [A|[B|C]], N) ->
+    if
+	A > Select ->
+	    {N, Select};
+	true ->
+	    find_n2(Select - A, [B|C], N+1)
+    end.
+%The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
+
+-module(stem).
+-export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1,weight/1,recover/6]).
+-record(stem, {types = empty_tuple(), pointers = empty_tuple(), weights = empty_tuple(), hashes = empty_hashes()}).
+empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
+add(S, N, T, P, W, H) ->
+    M = N+1,
+    Ty = S#stem.types,
+    Po = S#stem.pointers,
+    Ha = S#stem.hashes,
+    We = S#stem.weights,
+    T2 = setelement(M, Ty, T),
+    P2 = setelement(M, Po, P),
+    H2 = setelement(M, Ha, H),
+    W2 = setelement(M, We, W),
+    #stem{types = T2, pointers = P2, hashes = H2, weights = W2}.
+new_empty() -> #stem{}.
+recover(M, T, P, W, H, Hashes) ->
+    S = #stem{hashes = Hashes},
+    add(S, M, T, P, W, H).
+new(M, T, P, W, H) ->
+    %N is the nibble being pointed to.
+    %T is the type, P is the pointer, W is the amount of money on that branch, H is the Hash
+    S = new_empty(),
+    add(S, M, T, P, W, H).
+pointers(R) -> R#stem.pointers.
+types(R) -> R#stem.types.
+hashes(R) -> R#stem.hashes.
+weights(R) -> R#stem.weights.
+weight(R) -> sum_list(tuple_to_list(weights(R))).
+sum_list(L) -> sum_list(L, 0).
+sum_list([], X) -> X;
+sum_list([H|T], X) -> sum_list(T, X+H).
+pointer(N, R) ->
+    T = pointers(R),
+    element(N, T).
+type(N, R) ->
+    T = types(R),
+    element(N, T).
+weight(N, R) ->
+    T = weights(R),
+    element(N, T).
+serialize(S, CFG) ->
+    serialize(S, cfg:weight(CFG)*8, cfg:path(CFG)*8).
+serialize(S, WS, Path) ->
+    P = S#stem.pointers,
+    H = S#stem.hashes,
+    T = S#stem.types,
+    W = S#stem.weights,
+    serialize(P, H, T, W, WS, Path, 1).
+serialize(_, _, _, _, _, _, N) when N>16 -> <<>>;
+serialize(P, H, T, W, WS, Path, N) -> %WS is the size of the weight element in bits.
+    P1 = element(N, P),
+    H1 = element(N, H),
+    T1 = element(N, T),
+    W1 = element(N, W),
+    D = serialize(P, H, T, W, WS, Path, N+1),
+    << T1:2, P1:Path, W1:WS, H1/binary, D/bitstring >>.
+deserialize(B, CFG) -> 
+    X = empty_tuple(),
+    deserialize(1,X,X,X,cfg:weight(CFG)*8,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
+deserialize(17, T,P,W,_WS,_,_,H, <<>>) -> 
+    #stem{types = T, pointers = P, hashes = H, weights = W};
+deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) ->
+    <<T:2, P:Path, W:WS, H:HashDepth, D/bitstring>> = X,
+    T1 = setelement(N, T0, T),
+    P1 = setelement(N, P0, P),
+    W1 = setelement(N, W0, W),
+    H1 = setelement(N, H0, <<H:HashDepth>>),
+    deserialize(N+1, T1, P1, W1, WS, Path, HashDepth,H1, D).
+empty_hashes() ->
+    X = hash:hash_depth()*8,
+    {<<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
+empty_root(CFG) -> serialize(new_empty(), CFG).
+
+hash(S, CFG) when is_binary(S) ->
+    hash(deserialize(S, CFG), CFG);
+hash(S, _) when is_tuple(S) and (size(S) == 16)->    
+    hash2(1, S, <<>>);
+hash(S, _) ->    
+    H = S#stem.hashes,
+    hash2(1, H, <<>>).
+hash2(17, _, X) -> hash:doit(X);
+hash2(N, H, X) ->
+    A = element(N, H),
+    12 = size(A),
+    hash2(N+1, H, <<A/binary, X/binary>>).
+put(Stem, CFG) ->
+    dump:put(serialize(Stem, CFG), ids:stem(CFG)).
+get(Pointer, CFG) -> 
+    S = dump:get(Pointer, ids:stem(CFG)),
+    deserialize(S, CFG).
+test() ->
+    P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
+    T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    W = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    H = empty_hashes(),
+    CFG = cfg:new(1, 5, 2, trie),
+    S = #stem{types = T, pointers = P, hashes = H, weights = W},
+    S2 = serialize(S, CFG),
+    S = deserialize(S2, CFG),
+    hash(S, CFG),
+    success.
+    
+-module(store).
+-export([store/3, store/4]).
+
+store(Leaf, Root, Proof, CFG) ->
+    %{Proof, stem:hash(hd(Proof), CFG)} 
+    %this shows that the tl(hd(proof)) has a pointer to hd(proof)
+    true = verify:proof(Root, Leaf, Proof, CFG),
+    LPointer = leaf:put(Leaf, CFG),
+    LH = leaf:hash(Leaf, CFG),
+    Weight = leaf:weight(Leaf),
+    Path = leaf:path(Leaf, CFG),
+    Branch = proof2branch(Proof, 2, LPointer, LH, Path, CFG),
+    store_branch(Branch, Path, 2, LPointer, LH, Weight, CFG).
+proof2branch([],_,_,_, _, _) -> [];
+proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
+    <<Nibble:4, NewPath/bitstring>> = Path,
+    S = stem:recover(Nibble, Type, Pointer, 0, Hash, H),
+    NewPointer = stem:put(S, CFG),
+    NewHash = stem:hash(S, CFG),
+    [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
+    
+    
+store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
+    %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
+    LPointer = leaf:put(Leaf, CFG),
+    LH = leaf:hash(Leaf, CFG),
+    Weight = leaf:weight(Leaf),
+    P = leaf:path(Leaf, CFG),
+    B = case get_branch(P, 0, leaf:value(Leaf), Root, [], CFG) of
+	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
+	    %need to add 1 or more stems.
+		{A, N2} = path_match(P, leaf:path(Leaf2, CFG), 0),
+		[H|T] = empty_stems(A-length(Branch)+1),
+		LH2 = leaf:hash(Leaf2, CFG),
+		W2 = leaf:weight(Leaf2),
+		H2 = stem:add(H, N2, 2, LP2, W2, LH2),
+		[H2|T]++Branch;
+	    Branch -> %overwrite
+		Branch
+    end,
+    store_branch(B, P, 2, LPointer, LH, Weight, CFG).
+get_branch(Path, N, Value, Parent, Trail, CFG) ->
+    %gather the branch as it currently looks.
+    NN = 4*N,
+    <<_:NN, A:4, _/bitstring>> = Path,
+    M = N+1,
+    R = stem:get(Parent, CFG),
+    Pointer = stem:pointer(A+1, R),
+    RP = [R|Trail],
+    case stem:type(A+1, R) of
+	0 ->%empty
+	    RP;
+	1 ->%another stem
+	    get_branch(Path, M, Value, Pointer, RP, CFG);
+	2 ->%a leaf. 
+	    Leaf = leaf:get(Pointer, CFG),
+	    case leaf:path(Leaf, CFG) of
+		Path -> %overwrite
+		    io:fwrite("overwrite\n"),
+		    RP;
+		_ -> %split leaf, add stem(s)
+		    {Leaf, Pointer, RP}
+	    end
+    end.
+store_branch([], Path, _, Pointer, _, _, CFG) ->
+    %Instead of getting the thing, we can build it up while doing store.
+    case get:get(Path, Pointer, CFG) of
+	{Hash, _, Proof} -> {Hash, Pointer, Proof};
+	empty -> store_branch([], Path, 0, Pointer, 0, 0, CFG)
+    end;
+store_branch([B|Branch], Path, Type, Pointer, Hash, Weight, CFG) ->
+    S = length(Branch),
+    NN = 4*S,
+    <<_:NN, A:4, _/bitstring>> = Path,
+    S1 = stem:add(B, A, Type, Pointer, Weight, Hash),
+    Loc = stem:put(S1, CFG),
+    SH = stem:hash(S1, CFG),
+    NewWeight = add(tuple_to_list(stem:weights(S1))),
+    store_branch(Branch, Path, 1, Loc, SH, NewWeight, CFG).
+add(L) -> add(L, 0).
+add([], X) -> X;
+add([H|T], X) -> add(T, H+X).
+path_match(LP, LP2, N) -> %returns {convergense_length, next nibble}
+    NN = N*4,
+    <<_:NN, A:4, _/bitstring>> = LP,
+    <<_:NN, B:4, _/bitstring>> = LP2,
+    if
+	A == B -> path_match(LP, LP2, N+1);
+	true -> {N, B}%+leaf:weight(Leaf)}
+    end.
+empty_stems(0) -> [];
+empty_stems(N) -> [stem:new_empty()|empty_stems(N-1)].
+-module(test_trie).
+-export([test/0,test7/1,test3a/3]).
+
+-define(ID, trie01).
+
+test() ->
+    CFG = trie:cfg(?ID),
+    io:fwrite("test 1\n"),
+    %test1(CFG),
+    io:fwrite("test 2\n"),
+    %test2(CFG),
+    io:fwrite("test 3\n"),
+    %test3(CFG),
+    io:fwrite("test 4\n"),
+    %test4(CFG),
+    io:fwrite("test 5\n"),
+    test5(CFG).
+    %io:fwrite("test 6\n"),
+    %test6(CFG),
+    %io:fwrite("test 7\n"),
+    %test7(CFG).
+    
+
+test1(CFG) ->
+    Nib1 = 4,
+    Nib2 = 2,
+    L = <<Nib1:4,Nib2:4,0,0,0,0>>,
+    Lflip = <<0,0,0,0,Nib1:4,Nib2:4>>,
+    Lb = <<255,255>>,
+    Weight = 0,
+    Weight = 0,
+    <<Laa:40>> = Lflip,
+    <<Lbaa:16>> = Lb,
+    LeafAB = leaf:new(Laa, Weight, Lbaa), 
+    Lc = leaf:serialize(LeafAB, CFG),
+    Loc1 = dump:put(Lc, ids:leaf(CFG)),
+    LH = leaf:hash(LeafAB, CFG),
+    S1 = stem:new(Nib2, 2, Loc1, 0, LH),
+    Loc2 = stem:put(S1, CFG),
+    SH = stem:hash(S1, CFG),
+    S = stem:new(Nib1, 1, Loc2, 0, SH),
+    Loc3 = stem:put(S, CFG),
+    %Starts with a 2-level tree with a single leaf at the end.
+    RootHash = stem:hash(S, CFG),
+    Weight = 0,
+    X = {RootHash, LeafAB, [stem:hashes(S1), stem:hashes(S)]},
+    Proof = [stem:hashes(S1), stem:hashes(S)], 
+    {RootHash, LeafAB, _} = get:get(L, Loc3, CFG),%Path, Root
+    X = get:get(L, Loc3, CFG),%Path, Root
+    {_, LeafAB, Proof} = X,
+    Weight = leaf:weight(LeafAB),
+    true = verify:proof(RootHash, LeafAB, Proof, CFG),
+    %Now we add a second element.
+    Nib3 = 5,
+    Nib4 = 10,
+    L2 = <<Nib3:4,Nib4:4,0,0,0,0>>,
+    L2flip = <<0,0,0,0,Nib3:4,Nib4:4>>,
+    L2b = <<255,255>>,
+    <<Lbb:40>> = L2flip,
+    <<Lbbb:16>> = L2b,
+    Leafbb = leaf:new(Lbb, Weight, Lbbb),
+    L2c = leaf:serialize(Leafbb, CFG),
+    Loc4 = dump:put(L2c, ids:leaf(CFG)),
+    LH2 = leaf:hash(Leafbb, CFG),
+    S2 = stem:new(Nib4, 2, Loc4, 0, LH2),
+    Loc5 = stem:put(S2, CFG),
+    SH2 = stem:hash(S2, CFG),
+    S3 = stem:add(S, Nib3, 1, Loc5, 0, SH2),
+    Loc6 = stem:put(S3, CFG),
+    RootHash2 = stem:hash(S3, CFG),
+    Proof2 = [stem:hashes(S2), stem:hashes(S3)],
+    X2 = {RootHash2, Leafbb, Proof2},
+    X2 = get:get(L2, Loc6, CFG),
+    true = verify:proof(RootHash2, Leafbb, Proof2, CFG),
+    Nib5 = 4,
+    Nib6 = 2,
+    L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,0>>,
+    L3flip = <<0,0,0,0:4,1:4,Nib5:4,Nib6:4>>,
+    L3b = <<255,255>>,
+    <<L3abc:40>> = L3flip, 
+    <<L3value:16>> = L3b,
+    Leafcc = leaf:new(L3abc, Weight, L3value), 
+    {_, Loc7, _} = store:store(Leafcc, Loc6, CFG),
+    trie:garbage([Loc7], ?ID),
+    trie:cfg(?ID),
+    ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
+    0 = dump:put(ReplaceStem, ids:stem(CFG)),
+    {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
+    true = verify:proof(PP4,Leafcc,PP5,CFG),
+    ok.
+
+test2(CFG) ->
+    Loc = 0,
+    %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
+    <<La:16>> = <<255, 0>>,
+    Weight = 0,
+    Leaf = leaf:new(0, Weight, La),
+    store:store(Leaf, Loc, CFG).
+
+test3(CFG) -> 
+    Loc = 0,
+    Times = 10000,
+    {Keys, NewLoc} = test3a(Times, [], Loc),
+    test3b(1, Keys, NewLoc, CFG),
+    Seed = 0,
+    {_, {leaf,8210,1,1790}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
+    %io:fwrite(X).
+test3a(0, Keys, L) -> {Keys, L};
+test3a(N, Keys, Loc) -> %load up the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    {Key, NewLoc} = trie:put(N, Loc, 1, ?ID),
+    test3a(N-1, [Key|Keys], NewLoc).
+test3b(_, [], L, _CFG) -> L;
+test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    {Hash, Leaf, Proof} = trie:get(Key, Loc, ?ID),
+    true = verify:proof(Hash, Leaf, Proof, CFG), 
+    test3b(N+1, T, Loc, CFG).
+
+test4(CFG) ->
+    Size = dump:word(ids:leaf(CFG)),
+    Size = cfg:leaf(CFG),
+    Data0 = <<11:(8*Size)>>,
+    Data1 = <<2:(8*Size)>>,
+    Data2 = <<3:(8*Size)>>,
+    Data3 = <<4:(8*Size)>>,
+    IDSL = ids:leaf(CFG),
+    IDSS = ids:stem(CFG),
+    A0 = dump:put(Data0, IDSL),
+    Data0 = dump:get(A0, IDSL),
+    A1 = dump:put(Data1, IDSL),
+    Data1 = dump:get(A1, IDSL),
+    dump:delete(A0, IDSL),
+    A0 = dump:put(Data1, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    A2 = dump:put(Data2, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    A3 = dump:put(Data3, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    Data1 = dump:get(A1, IDSL),
+    Data2 = dump:get(A2, IDSL),
+    Data3 = dump:get(A3, IDSL),
+
+    Size2 = dump:word(IDSS),
+    Data02 = <<11:(8*Size2)>>,
+    Data12 = <<2:(8*Size2)>>,
+    Data22 = <<3:(8*Size2)>>,
+    Data32 = <<4:(8*Size2)>>,
+    A02 = dump:put(Data02, IDSS),
+    A12 = dump:put(Data12, IDSS),
+    A22 = dump:put(Data22, IDSS),
+    A32 = dump:put(Data32, IDSS),
+    Data02 = dump:get(A02, IDSS),
+    Data12 = dump:get(A12, IDSS),
+    Data22 = dump:get(A22, IDSS),
+    Data32 = dump:get(A32, IDSS),
+    dump:delete(A02, IDSS),
+    success.
+
+test5(CFG) ->
+    Root0 = 0,
+    <<V1:16>> = <<1,1>>,
+    <<V2:16>> = <<1,2>>,
+    <<V3:16>> = <<1,3>>,
+    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L2:40>> = <<0,16,0,0,0>>,
+    <<L3:40>> = <<0,1,0,0,0>>,
+    Weight = 0,
+    Leaf1 = leaf:new(L1, Weight, V1),
+    Leaf2 = leaf:new(L2, Weight, V2),
+    Leaf3 = leaf:new(L3, Weight, V3),
+    Leaf4 = leaf:new(L3, Weight, V1),
+    {_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    {Hash, Root2, Proof2} = store:store(Leaf2, Root1, CFG),
+    {Hash, Root3, _} = store:store(Leaf2, Root2, CFG),
+    {Hash2, Root4, Proof4} = store:store(Leaf3, Root3, CFG),
+    Lpath1 = leaf:path(Leaf1, CFG),
+    X = [{Lpath1, Root4}],
+    io:fwrite("garbage leaves\n"),
+    garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
+    %We need a merkle proof of it's previous state in order to update.
+    timer:sleep(500),
+    %timer:sleep(7000),
+    {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
+    true = verify:proof(Hash3, Leaf1, Proof, CFG),
+    true = verify:proof(Hash, Leaf2, Proof2, CFG),
+    {Hash4, Root5, Proof5} = store:store(Leaf3, Hash2, Proof4, CFG),
+    %we need to be able to add proofs for things into an empty database.
+    true = verify:proof(Hash4, Leaf3, Proof5, CFG),
+    {Hash5, Root6, Proof6} = store:store(Leaf4, Root5, CFG), %overwrite the same spot.
+    true = verify:proof(Hash5, Leaf4, Proof6, CFG).
+    
+    
+	
+    %ok.
+
+test6(CFG) ->
+    %The purpose of this test is to test merge.
+    % The full merkel trie will be too big, most people wont keep track of it all. 
+    % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
+    % We don't get a proof of the final state. We only get a proof of the initial state, and the final state. It is possible to calculate the new proof from this. The reason we don't get the new proof is because depending on which txs get accepted into the block, the root hash of the new state will be different
+    Root0 = 0,
+    <<V1:16>> = <<1,1>>,
+    <<V2:16>> = <<1,2>>,
+    <<V3:16>> = <<1,3>>,
+    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L2:40>> = <<0,16,0,0,0>>,
+    Weight = 0,
+    Leafa = leaf:new(L1, Weight, V1),
+    {_, Root1, _} = store:store(Leafa, Root0, CFG),
+    {Hash0bb, Leafa, Proofa} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
+    true = verify:proof(Hash0bb, Leafa, Proofa, CFG),
+    Leafb = leaf:new(L2, Weight, V2),
+    {_, Root2, _} = store:store(Leafb, Root1, CFG),
+    {Hash0, Leafb, Proofb} = get:get(leaf:path(Leafb, CFG), Root2, CFG),
+    true = verify:proof(Hash0, Leafb, Proofb, CFG),
+    Leafc = leaf:new(L2, Weight, V3),
+    {Hash, Root3, _} = store:store(Leafc, Root2, CFG),
+    {Hasha, _, _} = store:store(Leafc, Root1, CFG),
+    Hasha = Hash,
+    {Hash, Leafc, Proofc} = get:get(leaf:path(Leafc, CFG), Root3, CFG),
+    true = verify:proof(Hash, Leafc, Proofc, CFG),
+    GL = [{leaf:path(Leafa, CFG), Root1}],
+    {Hash, _, _} = store:store(Leafc, Root1, CFG),
+    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
+    garbage:garbage_leaves(GL, CFG),
+    timer:sleep(7000),
+    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
+    %it is over-writing the old leaf.
+    {Hash, _, _} = store:store(Leafc, Root1, CFG),
+    Root4 = merge:doit([Leafc], Hash, Root1, CFG),
+    {Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root4, CFG),
+    true = verify:proof(Hash, Leafa, B2, CFG).
+% the current implementation is very innefficient. It stores the entire proof onto the hard drive
+
+test7(CFG) ->
+    Root0 = 0,
+    <<V1:16>> = <<1,1>>,
+    <<V2:16>> = <<1,2>>,
+    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L2:40>> = <<0,16,0,0,0>>,
+    Weight = 1,
+    Leaf1 = leaf:new(L1, Weight, V1),
+    Leaf2 = leaf:new(L2, Weight, V2),
+    {_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    {Hash0bb, Leaf1, B0bb} = get:get(leaf:path(Leaf1, CFG), Root1, CFG),
+    true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
+    {_, Root2, _} = store:store(Leaf2, Root1, CFG),
+    {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
+    true = verify:proof(Hash0, Leaf2, B0, CFG),
+    io:fwrite("here\n"),
+    Stem = stem:get(Root2, CFG),
+    FS = {2,0,0,0,
+	  0,0,0,0,
+	  0,0,0,0,
+	  0,0,0,0},
+    FS = stem:weights(Stem).
+    
+    
+-module(test_tuple).
+-export([test/0]).
+%The result of this experiment is that setelement is very innefficient. It copies the tuples recursively.
+test() ->
+    X = list_to_tuple(make_list(0,10000000)),
+    Y = {0, X}.
+    %Z = setelement(1, Y, 1).
+make_list(_, 0) -> [];
+make_list(X, N) -> [X|make_list(X, N-1)].
+-module(trie_app).
+
+-behaviour(application).
+
+%% Application callbacks
+-export([start/2, stop/1]).
+
+%start(_StartType, _StartArgs) ->
+start(normal, []) ->
+    Size = 2,
+    %Max = 20000000000,
+    ID = trie01,
+    WS = 1,
+    KeyLength = 5,
+    Amount = 1000000,
+    Mode = hd,
+    trie_sup:start_link(WS, KeyLength, Size, ID, Amount, Mode).
+
+stop(_State) ->
+    ok.
+{application, trie,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { trie_app, []}},
+  {env, []}
+ ]}.
+-module(trie).
+-behaviour(gen_server).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, cfg/1,get/3,put/4,garbage/2,garbage_leaves/2,random_get/3]).
+init(CFG) -> 
+    StemID = ids:stem(CFG),
+    ReplaceStem = <<0:(8*(dump:word(StemID)))>>,
+    dump:put(ReplaceStem, StemID),
+    {ok, CFG}.
+start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
+    gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+terminate(_, _) -> io:format("died!"), ok.
+handle_info(_, X) -> {noreply, X}.
+handle_cast({garbage, Keepers}, CFG) -> 
+    io:fwrite("gabage 2\n"),
+    garbage:garbage(Keepers, CFG),
+    {noreply, CFG};
+handle_cast({garbage_leaves, KLS}, CFG) -> 
+    garbage:garbage_leaves(KLS, CFG),
+    {noreply, CFG};
+handle_cast(_, X) -> {noreply, X}.
+handle_call({put, Value, Root, Weight}, _From, CFG) -> 
+    ID = cfg:id(CFG),
+    Key = bits:top(ID),
+    Leaf = leaf:new(Key, Weight, Value), 
+    {_, NewRoot, _} = store:store(Leaf, Root, CFG),
+    bits:write(ID),
+    {reply, {Key, NewRoot}, CFG};
+handle_call({random_get, Seed, RootPointer}, _From, CFG) ->
+    {RH, L, Proof} = random_get:get(Seed, RootPointer, CFG),
+    {reply, {RH, L, Proof}, CFG};
+handle_call({get, Key, RootPointer}, _From, CFG) -> 
+    P = leaf:path_maker(Key, CFG),
+    {RootHash, Leaf, Proof} = get:get(P, RootPointer, CFG),
+    {reply, {RootHash, Leaf, Proof}, CFG};
+handle_call({garbage, Keepers}, _From, CFG) -> 
+    io:fwrite("gabage 2\n"),
+    garbage:garbage(Keepers, CFG),
+    {reply, ok, CFG};
+handle_call({garbage_leaves, KLS}, _From, CFG) -> 
+    garbage:garbage_leaves(KLS, CFG),
+    {reply, ok, CFG};
+handle_call(cfg, _From, CFG) ->
+    {reply, CFG, CFG}.
+cfg(ID) when is_atom(ID) -> gen_server:call({global, ids:main_id(ID)}, cfg).
+put(Value, Root, Weight, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {put, Value, Root, Weight}).
+get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+random_get(Seed, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {random_get, Seed, Root}).
+garbage(Keepers, ID) -> 
+    io:fwrite("trie garbage \n"),
+    gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).
+garbage_leaves(KLS, ID) ->
+    gen_server:cast({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
+
+-module(trie_hash).
+-export([doit/1,hash/1,hash_depth/0]).
+
+hash(S) -> 
+    HD = hash_depth() * 8,
+    <<X:HD, _/bitstring>> = crypto:hmac(sha256, S, ""),
+    <<X:HD>>.
+doit(S) when not(is_binary(S)) -> doit(term_to_binary(S));
+doit(S) -> hash(S).
+hash_depth() -> 12.
+    
+-module(trie_sup).
+-behaviour(supervisor).
+-export([start_link/6,init/1,stop/0]).
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+start_link(WS, KeyLength, Size, ID, Amount, Mode) -> 
+    %keylength is the number of bytes to encode the path that you follow on the trie.
+    CFG = cfg:new(WS, KeyLength, Size, ID),
+    supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode]).%WS is the number of bytes to store the amount of money controlled by each branch of the trie.
+stop() -> halt().
+init([CFG, Amount, Mode]) ->
+    %Size is the size of the data we store in the trie.
+    WS = cfg:weight(CFG),
+    KeyLength = cfg:path(CFG),
+    Size = cfg:value(CFG),
+    ID = cfg:id(CFG),
+    IDS = atom_to_list(ID),
+    %L1 = "data/"++IDS++"_trie.db",
+    %A1 = list_to_atom(IDS++"_bits_file"),
+    A2 = list_to_atom(IDS++"_bits"),
+    A3 = ids:leaf(CFG),
+    A4 = ids:stem(CFG),
+    A5 = ids:main(CFG),
+    L2 = "data/" ++ IDS ++ "_trie_bits.db",
+    Children = [{A3, {dump_sup, start_link, [A3, WS+KeyLength+Size, Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		{A4, {dump_sup, start_link, [A4, 276+(16*WS), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		%{A1, {file_manager, start_link, [L1, A1, Amount div 8, ram]}, permanent, 5000, worker, [file_manager]},
+		{A2, {bits, start_link, [A2, L2, Amount]}, permanent, 5000, worker, [bits]},
+		{A5, {trie, start_link, [CFG]}, permanent, 5000, worker, [trie]}
+	       ],
+    {ok, { {one_for_one, 5, 10}, Children} }.
+-module(verify).
+-export([proof/4]).
+proof(RootHash, L, Proof, CFG) ->
+    [H|F] = flip(Proof),
+    SH = stem:hash(H, CFG),
+    if
+	SH == RootHash ->
+	    verify_proof2(leaf:path(L, CFG), L, [H|F], CFG);
+	true -> 
+	    io:fwrite("false 1\n"),
+	    false
+    end.
+verify_proof2(<<N:4, _/bitstring>>, Leaf, P, CFG) when length(P) == 1->
+    P1 = hd(P),
+    Hash = element(N+1, P1),
+    Hash == leaf:hash(Leaf, CFG);
+verify_proof2(<<N:4, Path/bitstring>>, Leaf, [P1|[P2|Proof]], CFG) ->
+    Hash = element(N+1, P1),
+    case stem:hash(P2, CFG) of
+	Hash -> verify_proof2(Path, Leaf, [P2|Proof], CFG);
+	X ->
+	    io:fwrite(X),
+	    io:fwrite("false 3\n"),
+	    false
+    end;
+verify_proof2(_, _, _, _) -> 
+    io:fwrite("false 2\n"),
+    false.
+flip(X) -> flip(X, []).
+flip([], X) -> X;
+flip([A|B], C) -> 
+    flip(B, [A|C]).
+
