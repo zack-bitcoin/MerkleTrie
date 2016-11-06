@@ -1,6 +1,25 @@
 -module(store).
--export([store/3]).
+-export([store/3, store/4]).
 
+store(Leaf, Root, Proof, CFG) ->
+    %{Proof, stem:hash(hd(Proof), CFG)} 
+    %this shows that the tl(hd(proof)) has a pointer to hd(proof)
+    true = verify:proof(Root, Leaf, Proof, CFG),
+    LPointer = leaf:put(Leaf, CFG),
+    LH = leaf:hash(Leaf, CFG),
+    Weight = leaf:weight(Leaf),
+    Path = leaf:path(Leaf, CFG),
+    Branch = proof2branch(Proof, 2, LPointer, LH, Path, CFG),
+    store_branch(Branch, Path, 2, LPointer, LH, Weight, CFG).
+proof2branch([],_,_,_, _, _) -> [];
+proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
+    <<Nibble:4, NewPath/bitstring>> = Path,
+    S = stem:recover(Nibble, Type, Pointer, 0, Hash, H),
+    NewPointer = stem:put(S, CFG),
+    NewHash = stem:hash(S, CFG),
+    [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
+    
+    
 store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
     %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
     LPointer = leaf:put(Leaf, CFG),

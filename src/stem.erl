@@ -1,7 +1,7 @@
 %The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
 
 -module(stem).
--export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1,weight/1]).
+-export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1,weight/1,recover/6]).
 -record(stem, {types = empty_tuple(), pointers = empty_tuple(), weights = empty_tuple(), hashes = empty_hashes()}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
 add(S, N, T, P, W, H) ->
@@ -16,6 +16,9 @@ add(S, N, T, P, W, H) ->
     W2 = setelement(M, We, W),
     #stem{types = T2, pointers = P2, hashes = H2, weights = W2}.
 new_empty() -> #stem{}.
+recover(M, T, P, W, H, Hashes) ->
+    S = #stem{hashes = Hashes},
+    add(S, M, T, P, W, H).
 new(M, T, P, W, H) ->
     %N is the nibble being pointed to.
     %T is the type, P is the pointer, W is the amount of money on that branch, H is the Hash

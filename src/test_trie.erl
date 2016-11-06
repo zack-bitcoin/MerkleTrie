@@ -6,19 +6,19 @@
 test() ->
     CFG = trie:cfg(?ID),
     io:fwrite("test 1\n"),
-    test1(CFG),
+    %test1(CFG),
     io:fwrite("test 2\n"),
-    test2(CFG),
+    %test2(CFG),
     io:fwrite("test 3\n"),
-    test3(CFG),
+    %test3(CFG),
     io:fwrite("test 4\n"),
-    test4(CFG),
+    %test4(CFG),
     io:fwrite("test 5\n"),
-    test5(CFG),
-    io:fwrite("test 6\n"),
-    test6(CFG),
-    io:fwrite("test 7\n"),
-    test7(CFG).
+    test5(CFG).
+    %io:fwrite("test 6\n"),
+    %test6(CFG),
+    %io:fwrite("test 7\n"),
+    %test7(CFG).
     
 
 test1(CFG) ->
@@ -179,20 +179,31 @@ test5(CFG) ->
     Leaf1 = leaf:new(L1, Weight, V1),
     Leaf2 = leaf:new(L2, Weight, V2),
     Leaf3 = leaf:new(L3, Weight, V3),
+    Leaf4 = leaf:new(L3, Weight, V1),
     {_, Root1, _} = store:store(Leaf1, Root0, CFG),
-    {Hash, Root2, _} = store:store(Leaf2, Root1, CFG),
+    {Hash, Root2, Proof2} = store:store(Leaf2, Root1, CFG),
     {Hash, Root3, _} = store:store(Leaf2, Root2, CFG),
-    {_, Root4, _} = store:store(Leaf3, Root3, CFG),
+    {Hash2, Root4, Proof4} = store:store(Leaf3, Root3, CFG),
     Lpath1 = leaf:path(Leaf1, CFG),
     X = [{Lpath1, Root4}],
     io:fwrite("garbage leaves\n"),
     garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
-    timer:sleep(7000),
+    timer:sleep(500),
+    %timer:sleep(7000),
     {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
-    verify:proof(Hash3, Leaf1, Proof, CFG),
-    ok.
+    true = verify:proof(Hash3, Leaf1, Proof, CFG),
+    true = verify:proof(Hash, Leaf2, Proof2, CFG),
+    {Hash4, Root5, Proof5} = store:store(Leaf3, Hash2, Proof4, CFG),
+    %we need to be able to add proofs for things into an empty database.
+    true = verify:proof(Hash4, Leaf3, Proof5, CFG),
+    {Hash5, Root6, Proof6} = store:store(Leaf4, Root5, CFG),
+    true = verify:proof(Hash5, Leaf4, Proof6, CFG).
+    
+    
+	
+    %ok.
 
 test6(CFG) ->
     %The purpose of this test is to test merge.
