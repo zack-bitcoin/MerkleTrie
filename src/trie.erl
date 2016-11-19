@@ -20,7 +20,6 @@ handle_cast({garbage_leaves, KLS}, CFG) ->
     {noreply, CFG};
 handle_cast(_, X) -> {noreply, X}.
 handle_call({overwrite, Key, Value, Root, Weight}, _From, CFG) ->
-    ID = cfg:id(CFG),
     Leaf = leaf:new(Key, Weight, Value),
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),%this might not work. Not sure if the trie knows how to overwrite.
     {reply, NewRoot, CFG};
