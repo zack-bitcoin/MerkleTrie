@@ -14,8 +14,6 @@ init([CFG, Amount, Mode]) ->
     Size = cfg:value(CFG),
     ID = cfg:id(CFG),
     IDS = atom_to_list(ID),
-    %L1 = "data/"++IDS++"_trie.db",
-    %A1 = list_to_atom(IDS++"_bits_file"),
     A2 = list_to_atom(IDS++"_bits"),
     A3 = ids:leaf(CFG),
     A4 = ids:stem(CFG),

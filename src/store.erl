@@ -1,7 +1,7 @@
 -module(store).
 -export([store/3, store/4]).
 
-store(Leaf, Root, Proof, CFG) ->
+store(Leaf, Root, Proof, CFG) -> %this restores information to the merkle trie that had been garbage collected.
     %{Proof, stem:hash(hd(Proof), CFG)} 
     %this shows that the tl(hd(proof)) has a pointer to hd(proof)
     true = verify:proof(Root, Leaf, Proof, CFG),
