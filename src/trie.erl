@@ -22,7 +22,7 @@ handle_cast(_, X) -> {noreply, X}.
 handle_call({overwrite, Key, Value, Root, Weight}, _From, CFG) ->
     ID = cfg:id(CFG),
     Leaf = leaf:new(Key, Weight, Value),
-    {_, NewRoot, _} = store(Leaf, Root, CFG),%this might not work. Not sure if the trie knows how to overwrite.
+    {_, NewRoot, _} = store:store(Leaf, Root, CFG),%this might not work. Not sure if the trie knows how to overwrite.
     {reply, NewRoot, CFG};
 handle_call({put, Value, Root, Weight}, _From, CFG) -> 
     ID = cfg:id(CFG),
