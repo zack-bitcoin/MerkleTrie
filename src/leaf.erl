@@ -2,7 +2,7 @@
 -compile(export_all).
 -record(leaf, {key = 0, weight = 0, value = 0}).
 serialize(X, CFG) ->
-    W = cfg:weight(CFG)*8,
+    W = cfg:weight(CFG) * 8,
     L = cfg:value(CFG) * 8,
     <<(X#leaf.key):40, (X#leaf.weight):W, (X#leaf.value):L>>.
 deserialize(A, CFG) ->
@@ -10,10 +10,12 @@ deserialize(A, CFG) ->
     L = cfg:value(CFG) * 8,
     <<Key:40, Weight:W, Value:L>> = A,
     #leaf{key = Key, weight = Weight, value = Value}. 
-new(Key, Weight, Value) ->
-    #leaf{key = Key, weight = Weight, value = Value}. 
+new(Key, Weight, Value, CFG) ->
+    L = cfg:value(CFG) * 8,
+    <<V:L>> = Value,
+    #leaf{key = Key, weight = Weight, value = V}. 
 key(L) -> L#leaf.key.
-path(L, CFG) ->%S is the size of the path in bytes.
+path(L, CFG) ->
     K = key(L),
     path_maker(K, CFG).
 path_maker(K, CFG) ->

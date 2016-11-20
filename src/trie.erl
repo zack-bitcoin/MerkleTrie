@@ -20,13 +20,13 @@ handle_cast({garbage_leaves, KLS}, CFG) ->
     {noreply, CFG};
 handle_cast(_, X) -> {noreply, X}.
 handle_call({overwrite, Key, Value, Root, Weight}, _From, CFG) ->
-    Leaf = leaf:new(Key, Weight, Value),
-    {_, NewRoot, _} = store:store(Leaf, Root, CFG),%this might not work. Not sure if the trie knows how to overwrite.
+    Leaf = leaf:new(Key, Weight, Value, CFG),
+    {_, NewRoot, _} = store:store(Leaf, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({put, Value, Root, Weight}, _From, CFG) -> 
     ID = cfg:id(CFG),
     Key = bits:top(ID),
-    Leaf = leaf:new(Key, Weight, Value), 
+    Leaf = leaf:new(Key, Weight, Value, CFG),
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),
     bits:write(ID),
     {reply, {Key, NewRoot}, CFG};
