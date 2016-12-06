@@ -5,7 +5,9 @@
 start_link(WS, KeyLength, Size, ID, Amount, Mode) -> 
     %keylength is the number of bytes to encode the path that you follow on the trie.
     CFG = cfg:new(WS, KeyLength, Size, ID),
-    supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode]).%WS is the number of bytes to store the amount of money controlled by each branch of the trie.
+    supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode]).
+     %Size is the number of bytes to store the weight. The weights are used for the random getter, a higher weight increases your odds of being selected.
+     %WS is the number of bytes to store the amount of money controlled by each branch of the trie.
 stop() -> halt().
 init([CFG, Amount, Mode]) ->
     %Size is the size of the data we store in the trie.
@@ -14,8 +16,6 @@ init([CFG, Amount, Mode]) ->
     Size = cfg:value(CFG),
     ID = cfg:id(CFG),
     IDS = atom_to_list(ID),
-    %L1 = "data/"++IDS++"_trie.db",
-    %A1 = list_to_atom(IDS++"_bits_file"),
     A2 = list_to_atom(IDS++"_bits"),
     A3 = ids:leaf(CFG),
     A4 = ids:stem(CFG),

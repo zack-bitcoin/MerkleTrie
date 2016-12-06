@@ -8,3 +8,6 @@ value(X) -> X#cfg.value.%how many bytes to store the value.
 leaf(X) -> weight(X) + path(X) + value(X).%eventually we will remove weight from here.
 id(X) -> X#cfg.id.
 trie(X) -> X#cfg.trie. 
+root_hash(X) ->
+    T = X#cfg.trie,
+    stem:hash(T, X).
