@@ -100,7 +100,7 @@ test3(CFG) ->
     {Keys, NewLoc} = test3a(Times, [], Loc),
     test3b(1, Keys, NewLoc, CFG),
     Seed = 0,
-    {_, {leaf,625,1,375}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
+    {_, {leaf,625,1,<<1,119>>}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
     %io:fwrite(X).
 test3a(0, Keys, L) -> {Keys, L};
 test3a(N, Keys, Loc) -> %load up the trie
@@ -120,8 +120,8 @@ test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
 	    io:fwrite("\n");
 	true -> ok
     end,
-    {Hash, Leaf, Proof} = trie:get(Key, Loc, ?ID),
-    true = verify:proof(Hash, Leaf, Proof, CFG), 
+    {Hash, Value, Proof} = trie:get(Key, Loc, ?ID),
+    true = verify:proof(Hash, Value, Proof, CFG), 
     test3b(N+1, T, Loc, CFG).
 
 test4(CFG) ->
