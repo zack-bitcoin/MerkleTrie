@@ -4,11 +4,13 @@
 serialize(X, CFG) ->
     W = cfg:weight(CFG) * 8,
     L = cfg:value(CFG) * 8,
-    <<(X#leaf.key):40, (X#leaf.weight):W, (X#leaf.value):L>>.
+    P = cfg:path(CFG) * 8,
+    <<(X#leaf.key):P, (X#leaf.weight):W, (X#leaf.value):L>>.
 deserialize(A, CFG) ->
     W = cfg:weight(CFG) * 8,
     L = cfg:value(CFG) * 8,
-    <<Key:40, Weight:W, Value:L>> = A,
+    P = cfg:path(CFG) * 8,
+    <<Key:P, Weight:W, Value:L>> = A,
     #leaf{key = Key, weight = Weight, value = Value}. 
 new(Key, Weight, Value, CFG) ->
     L = cfg:value(CFG) * 8,
