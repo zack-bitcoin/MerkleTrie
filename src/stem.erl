@@ -48,7 +48,8 @@ serialize(S, WS, Path) ->
     H = S#stem.hashes,
     T = S#stem.types,
     W = S#stem.weights,
-    serialize(P, H, T, W, WS, Path, 1).
+    X = serialize(P, H, T, W, WS, Path, 1),
+    X.
 serialize(_, _, _, _, _, _, N) when N>16 -> <<>>;
 serialize(P, H, T, W, WS, Path, N) -> %WS is the size of the weight element in bits.
     P1 = element(N, P),
@@ -62,7 +63,7 @@ deserialize(B, CFG) ->
     deserialize(1,X,X,X,cfg:weight(CFG)*8,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
 deserialize(17, T,P,W,_WS,_,_,H, <<>>) -> 
     #stem{types = T, pointers = P, hashes = H, weights = W};
-deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) ->
+deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) when N < 17 ->
     <<T:2, P:Path, W:WS, H:HashDepth, D/bitstring>> = X,
     T1 = setelement(N, T0, T),
     P1 = setelement(N, P0, P),
@@ -99,7 +100,7 @@ test() ->
     T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
     W = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     H = empty_hashes(),
-    CFG = cfg:new(1, 5, 2, trie),
+    CFG = cfg:new(1, 9, 2, trie),
     S = #stem{types = T, pointers = P, hashes = H, weights = W},
     S2 = serialize(S, CFG),
     S = deserialize(S2, CFG),
