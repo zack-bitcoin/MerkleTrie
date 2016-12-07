@@ -41,8 +41,9 @@ handle_call({garbage_leaves, KLS}, _From, CFG) ->
     garbage:garbage_leaves(KLS, CFG),
     {reply, ok, CFG};
 handle_call({root_hash, RootPointer}, _From, CFG) ->
-    RH = cfg:root_hash(CFG),
-    {reply, RH, CFG};
+    S = stem:get(RootPointer, CFG),
+    H = stem:hash(S, CFG),
+    {reply, H, CFG};
 handle_call(cfg, _From, CFG) ->
     {reply, CFG, CFG}.
 cfg(ID) when is_atom(ID) ->
