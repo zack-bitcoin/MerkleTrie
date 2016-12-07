@@ -32,11 +32,11 @@ handle_call({put, Value, Root, Weight}, _From, CFG) ->
     {reply, {Key, NewRoot}, CFG};
 handle_call({random_get, Seed, RootPointer}, _From, CFG) ->
     {RH, L, Proof} = random_get:get(Seed, RootPointer, CFG),
-    {reply, {RH, L, Proof}, CFG};
+    {reply, {RH, leaf:key(L), leaf:value(L), Proof}, CFG};
 handle_call({get, Key, RootPointer}, _From, CFG) -> 
     P = leaf:path_maker(Key, CFG),
     {RootHash, Leaf, Proof} = get:get(P, RootPointer, CFG),
-    {reply, {RootHash, Leaf, Proof}, CFG};
+    {reply, {RootHash, leaf:value(Leaf), Proof}, CFG};
 handle_call({garbage_leaves, KLS}, _From, CFG) -> 
     garbage:garbage_leaves(KLS, CFG),
     {reply, ok, CFG};
