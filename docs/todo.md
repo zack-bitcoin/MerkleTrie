@@ -1,3 +1,11 @@
+%Key = bits:top(ID),%this is a problem. If we start making a new trie from the same root, we don't want to keep incrementing addresses, this is an example of non-determinism, different nodes would assign different ID numbers to the same accounts.
+    %where the "top" address is should depend on which root we are writing to. Each root should probably store a "top" along with it. So stems will need to be a little bigger.
+    %storing a "top" along with each root isn't enough, we would need to store an entire "bits" object, which is one bit for every address being used. Maybe with compression this isn't so bad?
+    %we are probably better off letting users select their own ID numbers within the accepted range, instead of assigning them.
+
+
+
+
 get:get.
 If we garbage collect part of the trie, and try to get from it, we need a useful error message.
 It should not look the same as reading from an address that isn't written to.

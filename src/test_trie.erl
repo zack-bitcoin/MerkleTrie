@@ -1,5 +1,5 @@
 -module(test_trie).
--export([test/0,test7/1,test3a/3]).
+-export([test/0]).
 
 -define(ID, trie01).
 
@@ -97,32 +97,32 @@ test2(CFG) ->
 test3(CFG) -> 
     Loc = 0,
     Times = 1000,
-    {Keys, NewLoc} = test3a(Times, [], Loc),
-    test3b(1, Keys, NewLoc, CFG),
-    Seed = 0,
-    {_, {leaf,625,1,<<1,119>>}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
+    NewLoc = test3a(Times, Times, Loc),
+    test3b(Times, NewLoc, CFG).
+    %Seed = 0,
+    %{_, {leaf,625,1,<<1,119>>}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
     %io:fwrite(X).
-test3a(0, Keys, L) -> {Keys, L};
-test3a(N, Keys, Loc) -> %load up the trie
+test3a(0, _, L) -> L;
+test3a(N, Times, Loc) -> %load up the trie
     if
 	(N rem 100) == 0 ->
 	    io:fwrite(integer_to_list(N)),
 	    io:fwrite("\n");
 	true -> ok
     end,
-    {Key, NewLoc} = trie:put(<<N:16>>, Loc, 1, ?ID),
-    test3a(N-1, [Key|Keys], NewLoc).
-test3b(_, [], L, _CFG) -> L;
-test3b(N, [Key|T], Loc, CFG) ->  %check that everything is in the trie
+    NewLoc = trie:put(Times + 1 - N, <<N:16>>, Loc, 1, ?ID),
+    test3a(N-1, Times, NewLoc).
+test3b(0, L, _CFG) -> L;
+test3b(N, Loc, CFG) ->  %check that everything is in the trie
     if
 	(N rem 100) == 0 ->
 	    io:fwrite(integer_to_list(N)),
 	    io:fwrite("\n");
 	true -> ok
     end,
-    {Hash, Value, Proof} = trie:get(Key, Loc, ?ID),
+    {Hash, Value, Proof} = trie:get(N, Loc, ?ID),
     true = verify:proof(Hash, Value, Proof, CFG), 
-    test3b(N+1, T, Loc, CFG).
+    test3b(N-1, Loc, CFG).
 
 test4(CFG) ->
     Size = dump:word(ids:leaf(CFG)),
