@@ -1,75 +1,61 @@
 %The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
 
 -module(stem).
--export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/6,new_empty/0,weight/2,weights/1,weight/1,recover/6]).
--record(stem, {types = empty_tuple(), pointers = empty_tuple(), weights = empty_tuple(), hashes = empty_hashes()}).
+-export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/4,add/5,new_empty/0,recover/5]).
+-record(stem, {types = empty_tuple(), pointers = empty_tuple(), hashes = empty_hashes()}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
-add(S, N, T, P, W, H) ->
+add(S, N, T, P, H) ->
     M = N+1,
     Ty = S#stem.types,
     Po = S#stem.pointers,
     Ha = S#stem.hashes,
-    We = S#stem.weights,
     T2 = setelement(M, Ty, T),
     P2 = setelement(M, Po, P),
     H2 = setelement(M, Ha, H),
-    W2 = setelement(M, We, W),
-    #stem{types = T2, pointers = P2, hashes = H2, weights = W2}.
+    #stem{types = T2, pointers = P2, hashes = H2}.
 new_empty() -> #stem{}.
-recover(M, T, P, W, H, Hashes) ->
+recover(M, T, P, H, Hashes) ->
     S = #stem{hashes = Hashes},
-    add(S, M, T, P, W, H).
-new(M, T, P, W, H) ->
+    add(S, M, T, P, H).
+new(M, T, P, H) ->
     %N is the nibble being pointed to.
-    %T is the type, P is the pointer, W is the amount of money on that branch, H is the Hash
+    %T is the type, P is the pointer, H is the Hash
     S = new_empty(),
-    add(S, M, T, P, W, H).
+    add(S, M, T, P, H).
 pointers(R) -> R#stem.pointers.
 types(R) -> R#stem.types.
 hashes(R) -> R#stem.hashes.
-weights(R) -> R#stem.weights.
-weight(R) -> sum_list(tuple_to_list(weights(R))).
-sum_list(L) -> sum_list(L, 0).
-sum_list([], X) -> X;
-sum_list([H|T], X) -> sum_list(T, X+H).
 pointer(N, R) ->
     T = pointers(R),
     element(N, T).
 type(N, R) ->
     T = types(R),
     element(N, T).
-weight(N, R) ->
-    T = weights(R),
-    element(N, T).
 serialize(S, CFG) ->
-    serialize(S, cfg:weight(CFG)*8, cfg:path(CFG)*8).
-serialize(S, WS, Path) ->
+    Path = cfg:path(CFG)*8,
     P = S#stem.pointers,
     H = S#stem.hashes,
     T = S#stem.types,
-    W = S#stem.weights,
-    X = serialize(P, H, T, W, WS, Path, 1),
+    X = serialize(P, H, T, Path, 1),
     X.
-serialize(_, _, _, _, _, _, N) when N>16 -> <<>>;
-serialize(P, H, T, W, WS, Path, N) -> %WS is the size of the weight element in bits.
+serialize(_, _, _, _, N) when N>16 -> <<>>;
+serialize(P, H, T, Path, N) -> 
     P1 = element(N, P),
     H1 = element(N, H),
     T1 = element(N, T),
-    W1 = element(N, W),
-    D = serialize(P, H, T, W, WS, Path, N+1),
-    << T1:2, P1:Path, W1:WS, H1/binary, D/bitstring >>.
+    D = serialize(P, H, T, Path, N+1),
+    << T1:2, P1:Path, H1/binary, D/bitstring >>.
 deserialize(B, CFG) -> 
     X = empty_tuple(),
-    deserialize(1,X,X,X,cfg:weight(CFG)*8,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
-deserialize(17, T,P,W,_WS,_,_,H, <<>>) -> 
-    #stem{types = T, pointers = P, hashes = H, weights = W};
-deserialize(N, T0,P0,W0,WS,Path,HashDepth,H0,X) when N < 17 ->
-    <<T:2, P:Path, W:WS, H:HashDepth, D/bitstring>> = X,
+    deserialize(1,X,X,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
+deserialize(17, T,P,_,_,H, <<>>) -> 
+    #stem{types = T, pointers = P, hashes = H};
+deserialize(N, T0,P0,Path,HashDepth,H0,X) when N < 17 ->
+    <<T:2, P:Path, H:HashDepth, D/bitstring>> = X,
     T1 = setelement(N, T0, T),
     P1 = setelement(N, P0, P),
-    W1 = setelement(N, W0, W),
     H1 = setelement(N, H0, <<H:HashDepth>>),
-    deserialize(N+1, T1, P1, W1, WS, Path, HashDepth,H1, D).
+    deserialize(N+1, T1, P1, Path, HashDepth,H1, D).
 empty_hashes() ->
     X = hash:hash_depth()*8,
     {<<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
@@ -98,10 +84,9 @@ get(Pointer, CFG) ->
 test() ->
     P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
     T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    W = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     H = empty_hashes(),
     CFG = cfg:new(1, 9, 2, trie),
-    S = #stem{types = T, pointers = P, hashes = H, weights = W},
+    S = #stem{types = T, pointers = P, hashes = H},
     S2 = serialize(S, CFG),
     S = deserialize(S2, CFG),
     hash(S, CFG),

@@ -10,11 +10,10 @@ start(normal, []) ->
     Size = 2,
     %Max = 20000000000,
     ID = trie01,
-    WS = 1,
     KeyLength = 9,
     Amount = 1000000,
     Mode = hd,
-    trie_sup:start_link(WS, KeyLength, Size, ID, Amount, Mode).
+    trie_sup:start_link(KeyLength, Size, ID, Amount, Mode).
 
 stop(_State) ->
     ok.
