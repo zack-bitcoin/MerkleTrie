@@ -18,14 +18,17 @@ test() ->
     io:fwrite("test 6\n"),
     test6(CFG),
     io:fwrite("test 7\n"),
-    test7(CFG).
+    test7(CFG),
+    io:fwrite("test 8\n"),
+    test8(CFG),
+    success.
     
 
 test1(CFG) ->
     Nib1 = 4,
     Nib2 = 2,
     L = <<Nib1:4,Nib2:4,0,0,0,0>>,
-    Lflip = <<0,0,0,0,Nib1:4,Nib2:4>>,
+    Lflip = <<0,0,0,0,Nib2:4,Nib1:4>>,
     Lb = <<255,255>>,
     Weight = 0,
     Weight = 0,
@@ -53,7 +56,7 @@ test1(CFG) ->
     Nib3 = 5,
     Nib4 = 10,
     L2 = <<Nib3:4,Nib4:4,0,0,0,0>>,
-    L2flip = <<0,0,0,0,Nib3:4,Nib4:4>>,
+    L2flip = <<0,0,0,0,Nib4:4,Nib3:4>>,
     L2b = <<255,255>>,
     <<Lbb:40>> = L2flip,
     Leafbb = leaf:new(Lbb, Weight, L2b, CFG),
@@ -73,11 +76,12 @@ test1(CFG) ->
     Nib5 = 4,
     Nib6 = 2,
     L3 = <<Nib5:4,Nib6:4,0:4,1:4,0,0,0>>,
-    L3flip = <<0,0,0,0:4,1:4,Nib5:4,Nib6:4>>,
+    L3flip = <<0,0,0,1:4,0:4,Nib6:4,Nib5:4>>,
     L3b = <<255,255>>,
     <<L3abc:40>> = L3flip, 
     Leafcc = leaf:new(L3abc, Weight, L3b, CFG), 
-    {_, Loc7, _} = store:store(Leafcc, Loc6, CFG),
+    {Root7, Loc7, _} = store:store(Leafcc, Loc6, CFG),
+    {Root7, _, _} = store:store(Leafcc, Loc6, CFG),
     trie:garbage([Loc7], ?ID),
     trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
@@ -91,7 +95,7 @@ test2(CFG) ->
     %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     La = <<255, 0>>,
     Weight = 0,
-    Leaf = leaf:new(0, Weight, La, CFG),
+    Leaf = leaf:new(1, Weight, La, CFG),
     store:store(Leaf, Loc, CFG).
 
 test3(CFG) -> 
@@ -169,7 +173,7 @@ test5(CFG) ->
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
-    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L1:40>> = <<0,0,0,0,1>>,
     <<L2:40>> = <<0,16,0,0,0>>,
     <<L3:40>> = <<0,1,0,0,0>>,
     Weight = 0,
@@ -192,7 +196,7 @@ test5(CFG) ->
     {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
     true = verify:proof(Hash3, Leaf1, Proof, CFG),
     true = verify:proof(Hash, Leaf2, Proof2, CFG),
-    {Hash4, Root5, Proof5} = store:store(Leaf3, Hash2, Proof4, CFG),
+    {Hash4, Root5, Proof5} = store:store(Leaf3, Hash2, Proof4, Root4, CFG),
     %we need to be able to add proofs for things into an empty database.
     true = verify:proof(Hash4, Leaf3, Proof5, CFG),
     {Hash5, _Root6, Proof6} = store:store(Leaf4, Root5, CFG), %overwrite the same spot.
@@ -208,7 +212,7 @@ test6(CFG) ->
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
-    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L1:40>> = <<0,0,0,0,1>>,
     <<L2:40>> = <<0,16,0,0,0>>,
     Weight = 0,
     Leafa = leaf:new(L1, Weight, V1, CFG),
@@ -225,24 +229,29 @@ test6(CFG) ->
     Hasha = Hash,
     {Hash, Leafc, Proofc} = get:get(leaf:path(Leafc, CFG), Root3, CFG),
     true = verify:proof(Hash, Leafc, Proofc, CFG),
-    GL = [{leaf:path(Leafa, CFG), Root1}],
-    {Hash, _, _} = store:store(Leafc, Root1, CFG),
-    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
+    {Hash, Root6, Proofc} = store:store(Leafc, Root1, CFG),
+    GL = [{leaf:path(Leafa, CFG), Root6}],
+    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     garbage:garbage_leaves(GL, CFG),
     timer:sleep(7000),
-    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
-    %it is over-writing the old leaf.
-    {Hash, _, _} = store:store(Leafc, Root1, CFG),
-    Root4 = merge:doit([Leafc], Hash, Root1, CFG),
-    {Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root4, CFG),
-    true = verify:proof(Hash, Leafa, B2, CFG).
+    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
+    
+    {_Hashtest, Root5, _ProofTest} = store:store(Leafc, Hash, Proofc, Root6, CFG), %it is restoring the deleted leaf to the database.
+    %io:fwrite({[Hashtest, ProofTest], [Hash, Proofc]}),
+    %Leafd = leaf:new(1, Weight, <<1,1>>, CFG),
+    %store:store(Leafd, Root0, CFG), 
+    %Root4 = merge:doit([Leafc], Hash, Root1, CFG),
+    {Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
+    {Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
+    true = verify:proof(Hash, Leafa, B2, CFG),
 % the current implementation is very innefficient. It stores the entire proof onto the hard drive
+    success.
 
 test7(CFG) ->
     Root0 = 0,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
-    <<L1:40>> = <<0,0,0,0,0>>,
+    <<L1:40>> = <<0,0,0,0,2>>,
     <<L2:40>> = <<0,16,0,0,0>>,
     Weight = 1,
     Leaf1 = leaf:new(L1, Weight, V1, CFG),
@@ -252,13 +261,18 @@ test7(CFG) ->
     true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
     {_, Root2, _} = store:store(Leaf2, Root1, CFG),
     {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
-    true = verify:proof(Hash0, Leaf2, B0, CFG),
-    io:fwrite("here\n"),
-    Stem = stem:get(Root2, CFG),
-    FS = {2,0,0,0,
-	  0,0,0,0,
-	  0,0,0,0,
-	  0,0,0,0},
-    FS = stem:weights(Stem).
+    true = verify:proof(Hash0, Leaf2, B0, CFG).
     
+test8(_CFG) ->    
+    V1 = <<1,1>>,
+    Root = 0,
+    Weight = 0,
+    Key = 1,
+    Root2 = trie:put(Key, V1, Root, Weight, trie01),
+    {_, empty, _} = trie:get(2, Root2, trie01),
+    {_, empty, _} = trie:get(3, Root2, trie01),
+    {_, empty, _} = trie:get(4, Root2, trie01),
+    {_, Leaf, _} = trie:get(Key, Root2, trie01),
+    V1 = leaf:value(Leaf),
+    success.
     

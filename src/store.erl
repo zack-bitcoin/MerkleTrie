@@ -1,16 +1,32 @@
 -module(store).
--export([store/3, store/4]).
+-export([store/3, store/5]).
 
-store(Leaf, Root, Proof, CFG) -> %this restores information to the merkle trie that had been garbage collected.
-    %{Proof, stem:hash(hd(Proof), CFG)} 
-    %this shows that the tl(hd(proof)) has a pointer to hd(proof)
-    true = verify:proof(Root, Leaf, Proof, CFG),
+store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
+
+    %This function has a problem. It creates a new small trie containing JUST the proof. We want to integrate the proof with our existing trie.
+    %We should probably calculate the existing branch, and the proof2branch, and mix them together. We want the new branch to contain pointers to the existing data.
+
+    true = verify:proof(Hash, Leaf, Proof, CFG),
     LPointer = leaf:put(Leaf, CFG),
     LH = leaf:hash(Leaf, CFG),
     Weight = leaf:weight(Leaf),
     Path = leaf:path(Leaf, CFG),
     Branch = proof2branch(Proof, 2, LPointer, LH, Path, CFG),
-    store_branch(Branch, Path, 2, LPointer, LH, Weight, CFG).
+    V = leaf:value(Leaf),
+    Branch2 = get_branch(Path, 0, V, Root, [], CFG),
+    Branch3 = combine_branches(Path, Branch, Branch2),
+    store_branch(Branch3, Path, 2, LPointer, LH, Weight, CFG).
+combine_branches(_, X, []) -> X;
+combine_branches(<<N:4, Path/bitstring>>, [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
+    %io:fwrite([Sa, Sb]),
+    [combine_stems(N+1, Sa, Sb)|combine_branches(Path, A, B)].
+combine_stems(N, A, B) ->
+    %io:fwrite([A, B]),
+    T = stem:type(N, A),
+    P = stem:pointer(N, A),
+    H = element(N, stem:hashes(A)),
+    stem:add(B, N-1, T, P, 0, H).
+    
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
     <<Nibble:4, NewPath/bitstring>> = Path,

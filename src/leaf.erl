@@ -15,6 +15,7 @@ deserialize(A, CFG) ->
     <<Key:P, Weight:W, Value:L>> = A,
     #leaf{key = Key, weight = Weight, value = <<Value:L>>}. 
 new(Key, Weight, Value, CFG) ->
+    true = Key > 0,
     L = cfg:value(CFG) * 8,
     <<_:L>> = Value,
     #leaf{key = Key, weight = Weight, value = Value}. 
@@ -38,5 +39,5 @@ hash(L, CFG) ->
     hash:doit(serialize(L, CFG)).
 flip_bytes(X) -> flip_bytes(X, <<>>).
 flip_bytes(<<>>, X) -> X;
-flip_bytes(<<N:8, T/bitstring>>, X) -> 
-    flip_bytes(T, <<N:8, X/bitstring>>).
+flip_bytes(<<N:4, T/bitstring>>, X) -> 
+    flip_bytes(T, <<N:4, X/bitstring>>).
