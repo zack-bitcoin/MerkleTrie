@@ -103,9 +103,6 @@ test3(CFG) ->
     Times = 1000,
     NewLoc = test3a(Times, Times, Loc),
     test3b(Times, NewLoc, CFG).
-    %Seed = 0,
-    %{_, {leaf,625,1,<<1,119>>}, _} = trie:random_get(Seed, NewLoc, cfg:id(CFG)).
-    %io:fwrite(X).
 test3a(0, _, L) -> L;
 test3a(N, Times, Loc) -> %load up the trie
     if
@@ -237,10 +234,6 @@ test6(CFG) ->
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     
     {_Hashtest, Root5, _ProofTest} = store:store(Leafc, Hash, Proofc, Root6, CFG), %it is restoring the deleted leaf to the database.
-    %io:fwrite({[Hashtest, ProofTest], [Hash, Proofc]}),
-    %Leafd = leaf:new(1, Weight, <<1,1>>, CFG),
-    %store:store(Leafd, Root0, CFG), 
-    %Root4 = merge:doit([Leafc], Hash, Root1, CFG),
     {Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
     {Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
     true = verify:proof(Hash, Leafa, B2, CFG),

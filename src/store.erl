@@ -18,14 +18,12 @@ store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle 
     store_branch(Branch3, Path, 2, LPointer, LH, Weight, CFG).
 combine_branches(_, X, []) -> X;
 combine_branches(<<N:4, Path/bitstring>>, [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
-    %io:fwrite([Sa, Sb]),
     [combine_stems(N+1, Sa, Sb)|combine_branches(Path, A, B)].
 combine_stems(N, A, B) ->
-    %io:fwrite([A, B]),
     T = stem:type(N, A),
     P = stem:pointer(N, A),
     H = element(N, stem:hashes(A)),
-    stem:add(B, N-1, T, P, 0, H).
+    stem:add(B, N+1, T, P, 0, H).
     
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
@@ -72,7 +70,6 @@ get_branch(Path, N, Value, Parent, Trail, CFG) ->
 	    Leaf = leaf:get(Pointer, CFG),
 	    case leaf:path(Leaf, CFG) of
 		Path -> %overwrite
-		    io:fwrite("overwrite\n"),
 		    RP;
 		_ -> %split leaf, add stem(s)
 		    {Leaf, Pointer, RP}
