@@ -21,6 +21,8 @@ test() ->
     test7(CFG),
     io:fwrite("test 8\n"),
     test8(CFG),
+    io:fwrite("test 9\n"),
+    test9(CFG),
     success.
     
 
@@ -259,4 +261,16 @@ test8(_CFG) ->
     {_, Leaf, _} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
     success.
+    
+test9(_CFG) ->
+    V1 = <<2,3>>,
+    Root = 0,
+    Key = 1,
+    Root2 = trie:put(Key, V1, Root, trie01),
+    {_, Leaf, _} = trie:get(Key, Root2, trie01),
+    V1 = leaf:value(Leaf),
+    Root3 = trie:delete(Key, Root2, trie01),
+    {_, empty, _} = trie:get(Key, Root3, trie01),
+    success.
+    
     

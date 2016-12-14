@@ -1,5 +1,5 @@
 -module(store).
--export([store/3, store/5]).
+-export([store/3, store/5, get_branch/5, store_branch/6]).
 
 store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
 
@@ -11,8 +11,7 @@ store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle 
     LH = leaf:hash(Leaf, CFG),
     Path = leaf:path(Leaf, CFG),
     Branch = proof2branch(Proof, 2, LPointer, LH, Path, CFG),
-    V = leaf:value(Leaf),
-    Branch2 = get_branch(Path, 0, V, Root, [], CFG),
+    Branch2 = get_branch(Path, 0, Root, [], CFG),
     Branch3 = combine_branches(Path, Branch, Branch2),
     store_branch(Branch3, Path, 2, LPointer, LH, CFG).
 combine_branches(_, X, []) -> X;
@@ -38,7 +37,7 @@ store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
     LPointer = leaf:put(Leaf, CFG),
     LH = leaf:hash(Leaf, CFG),
     P = leaf:path(Leaf, CFG),
-    B = case get_branch(P, 0, leaf:value(Leaf), Root, [], CFG) of
+    B = case get_branch(P, 0, Root, [], CFG) of
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
 	    %need to add 1 or more stems.
 		{A, N2} = path_match(P, leaf:path(Leaf2, CFG), 0),
@@ -50,7 +49,7 @@ store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
 		Branch
     end,
     store_branch(B, P, 2, LPointer, LH, CFG).
-get_branch(Path, N, Value, Parent, Trail, CFG) ->
+get_branch(Path, N, Parent, Trail, CFG) ->
     %gather the branch as it currently looks.
     NN = 4*N,
     <<_:NN, A:4, _/bitstring>> = Path,
@@ -62,7 +61,7 @@ get_branch(Path, N, Value, Parent, Trail, CFG) ->
 	0 ->%empty
 	    RP;
 	1 ->%another stem
-	    get_branch(Path, M, Value, Pointer, RP, CFG);
+	    get_branch(Path, M, Pointer, RP, CFG);
 	2 ->%a leaf. 
 	    Leaf = leaf:get(Pointer, CFG),
 	    case leaf:path(Leaf, CFG) of
@@ -74,10 +73,13 @@ get_branch(Path, N, Value, Parent, Trail, CFG) ->
     end.
 store_branch([], Path, _, Pointer, _, CFG) ->
     %Instead of getting the thing, we can build it up while doing store.
-    case get:get(Path, Pointer, CFG) of
-	{Hash, _, Proof} -> {Hash, Pointer, Proof};
-	empty -> store_branch([], Path, 0, Pointer, 0, CFG)
-    end;
+    {Hash, _, Proof} = get:get(Path, Pointer, CFG),
+    {Hash, Pointer, Proof};
+
+    %case get:get(Path, Pointer, CFG) of
+	%{Hash, _, Proof} -> {Hash, Pointer, Proof};
+	%empty -> store_branch([], Path, 0, Pointer, 0, CFG)
+    %end;
 store_branch([B|Branch], Path, Type, Pointer, Hash, CFG) ->
     S = length(Branch),
     NN = 4*S,

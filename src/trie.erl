@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/4,garbage/2,garbage_leaves/2]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/4,delete/3,garbage/2,garbage_leaves/2]).
 init(CFG) -> 
     StemID = ids:stem(CFG),
     ReplaceStem = <<0:(8*(dump:word(StemID)))>>,
@@ -19,6 +19,9 @@ handle_cast({garbage_leaves, KLS}, CFG) ->
     garbage:garbage_leaves(KLS, CFG),
     {noreply, CFG};
 handle_cast(_, X) -> {noreply, X}.
+handle_call({delete, Key, Root}, _From, CFG) ->
+    NewRoot = delete:delete(Key, Root, CFG),
+    {reply, NewRoot, CFG};
 handle_call({put, Key, Value, Root}, _From, CFG) -> 
     Leaf = leaf:new(Key, Value, CFG),
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),
@@ -43,6 +46,7 @@ root_hash(ID, RootPointer) when is_atom(ID) ->
 put(Key, Value, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {put, Key, Value, Root}).
 get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
 garbage(Keepers, ID) -> 
     io:fwrite("trie garbage \n"),
     gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).
