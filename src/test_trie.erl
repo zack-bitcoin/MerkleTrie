@@ -5,28 +5,18 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    io:fwrite("test 1\n"),
-    test1(CFG),
-    io:fwrite("test 2\n"),
-    test2(CFG),
-    io:fwrite("test 3\n"),
-    test3(CFG),
-    io:fwrite("test 4\n"),
-    test4(CFG),
-    io:fwrite("test 5\n"),
-    test5(CFG),
-    io:fwrite("test 6\n"),
-    test6(CFG),
-    io:fwrite("test 7\n"),
-    test7(CFG),
-    io:fwrite("test 8\n"),
-    test8(CFG),
-    io:fwrite("test 9\n"),
-    test9(CFG),
-    success.
-    
+    V = [1,2,3,4,5,6,7,8,9],
+    %V = [6, 9],
+    test_helper(V, CFG).
+test_helper([], _) -> success;
+test_helper([N|T], CFG) -> 
+    io:fwrite("test "),
+    io:fwrite(integer_to_list(N)),
+    io:fwrite("\n"),
+    test(N, CFG),
+    test_helper(T, CFG).
 
-test1(CFG) ->
+test(1, CFG) ->
     Nib1 = 4,
     Nib2 = 2,
     L = <<Nib1:4,Nib2:4,0,0,0,0>>,
@@ -86,43 +76,22 @@ test1(CFG) ->
     0 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
     true = verify:proof(PP4,Leafcc,PP5,CFG),
-    ok.
+    ok;
 
-test2(CFG) ->
+test(2, CFG) ->
     Loc = 0,
     %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     La = <<255, 0>>,
     Leaf = leaf:new(1, La, CFG),
-    store:store(Leaf, Loc, CFG).
+    store:store(Leaf, Loc, CFG);
 
-test3(CFG) -> 
+test(3, CFG) -> 
     Loc = 0,
     Times = 1000,
     NewLoc = test3a(Times, Times, Loc),
-    test3b(Times, NewLoc, CFG).
-test3a(0, _, L) -> L;
-test3a(N, Times, Loc) -> %load up the trie
-    if
-	(N rem 100) == 0 ->
-	    io:fwrite(integer_to_list(N)),
-	    io:fwrite("\n");
-	true -> ok
-    end,
-    NewLoc = trie:put(Times + 1 - N, <<N:16>>, Loc, ?ID),
-    test3a(N-1, Times, NewLoc).
-test3b(0, L, _CFG) -> L;
-test3b(N, Loc, CFG) ->  %check that everything is in the trie
-    if
-	(N rem 100) == 0 ->
-	    io:fwrite(integer_to_list(N)),
-	    io:fwrite("\n");
-	true -> ok
-    end,
-    {Hash, Value, Proof} = trie:get(N, Loc, ?ID),
-    true = verify:proof(Hash, Value, Proof, CFG), 
-    test3b(N-1, Loc, CFG).
+    test3b(Times, NewLoc, CFG);
 
-test4(CFG) ->
+test(4, CFG) ->
     Size = dump:word(ids:leaf(CFG)),
     Size = cfg:leaf(CFG),
     Data0 = <<11:(8*Size)>>,
@@ -160,9 +129,9 @@ test4(CFG) ->
     Data22 = dump:get(A22, IDSS),
     Data32 = dump:get(A32, IDSS),
     dump:delete(A02, IDSS),
-    success.
+    success;
 
-test5(CFG) ->
+test(5, CFG) ->
     Root0 = 0,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
@@ -194,9 +163,9 @@ test5(CFG) ->
     true = verify:proof(Hash4, Leaf3, Proof5, CFG),
     {Hash5, _Root6, Proof6} = store:store(Leaf4, Root5, CFG), %overwrite the same spot.
     true = verify:proof(Hash5, Leaf4, Proof6, CFG),
-    ok.
+    ok;
 
-test6(CFG) ->
+test(6, CFG) ->
     %The purpose of this test is to test merge.
     % The full merkel trie will be too big, most people wont keep track of it all. 
     % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
@@ -233,9 +202,9 @@ test6(CFG) ->
     {Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
     true = verify:proof(Hash, Leafa, B2, CFG),
 % the current implementation is very innefficient. It stores the entire proof onto the hard drive
-    success.
+    success;
 
-test7(CFG) ->
+test(7, CFG) ->
     Root0 = 0,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
@@ -248,9 +217,9 @@ test7(CFG) ->
     true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
     {_, Root2, _} = store:store(Leaf2, Root1, CFG),
     {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
-    true = verify:proof(Hash0, Leaf2, B0, CFG).
+    true = verify:proof(Hash0, Leaf2, B0, CFG);
     
-test8(_CFG) ->    
+test(8, _CFG) ->    
     V1 = <<1,1>>,
     Root = 0,
     Key = 1,
@@ -260,17 +229,43 @@ test8(_CFG) ->
     {_, empty, _} = trie:get(4, Root2, trie01),
     {_, Leaf, _} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
-    success.
+    success;
     
-test9(_CFG) ->
+test(9, CFG) ->
+    S = stem:get(0, CFG),
     V1 = <<2,3>>,
     Root = 0,
-    Key = 1,
+    Key = 5,
+    RH = trie:root_hash(trie01, 0),
     Root2 = trie:put(Key, V1, Root, trie01),
-    {_, Leaf, _} = trie:get(Key, Root2, trie01),
+    {_, Leaf, _Proof1} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
     Root3 = trie:delete(Key, Root2, trie01),
-    {_, empty, _} = trie:get(Key, Root3, trie01),
+    {RH, empty, _Proof} = trie:get(Key, Root3, trie01),
+    S = stem:get(0, CFG),
     success.
     
     
+
+test3a(0, _, L) -> L;
+test3a(N, Times, Loc) -> %load up the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    NewLoc = trie:put(Times + 1 - N, <<N:16>>, Loc, ?ID),
+    test3a(N-1, Times, NewLoc).
+test3b(0, L, _CFG) -> L;
+test3b(N, Loc, CFG) ->  %check that everything is in the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    {Hash, Value, Proof} = trie:get(N, Loc, ?ID),
+    true = verify:proof(Hash, Value, Proof, CFG), 
+    test3b(N-1, Loc, CFG).
+

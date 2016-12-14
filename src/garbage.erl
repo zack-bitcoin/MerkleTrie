@@ -4,7 +4,7 @@ garbage_leaves(KeeperLeaves, CFG) ->
     {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
     dump_bits(KL, CFG),
     delete_stuff(0, KL, ids:leaf(CFG)),
-    delete_stuff(0, KeeperStems, ids:stem(CFG)),
+    delete_stuff(0, [0|KeeperStems], ids:stem(CFG)),
     ok.
 garbage(KeeperRoots, CFG) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
@@ -41,7 +41,7 @@ kb2(<<N:4, Path/bitstring>>, Stem, Keepers, CFG) ->
 	    {Keepers, PN}
     end.
 keepers([], _) -> {[], []};
-keepers([R|Roots], CFG) ->
+keepers([R|Roots], CFG) -> %returns {keeperstems, keeperleaves}
     case stem:get(R, CFG) of
 	error -> 
 	    {A, B} = keepers(Roots, CFG),
