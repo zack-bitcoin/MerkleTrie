@@ -13,7 +13,9 @@ start(normal, []) ->
     KeyLength = 9,
     Amount = 1000000,
     Mode = hd,
-    trie_sup:start_link(KeyLength, Size, ID, Amount, Mode).
+    Meta = 0,
+    HashSize = 12,
+    trie_sup:start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode).
 
 stop(_State) ->
     ok.

@@ -3,7 +3,6 @@
 
 store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
 
-    %This function has a problem. It creates a new small trie containing JUST the proof. We want to integrate the proof with our existing trie.
     %We should probably calculate the existing branch, and the proof2branch, and mix them together. We want the new branch to contain pointers to the existing data.
 
     true = verify:proof(Hash, Leaf, Proof, CFG),
@@ -41,7 +40,7 @@ store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
 	    %need to add 1 or more stems.
 		{A, N2} = path_match(P, leaf:path(Leaf2, CFG), 0),
-		[H|T] = empty_stems(A-length(Branch)+1),
+		[H|T] = empty_stems(A-length(Branch)+1, CFG),
 		LH2 = leaf:hash(Leaf2, CFG),
 		H2 = stem:add(H, N2, 2, LP2, LH2),
 		[H2|T]++Branch;
@@ -99,5 +98,5 @@ path_match(LP, LP2, N) -> %returns {convergense_length, next nibble}
 	A == B -> path_match(LP, LP2, N+1);
 	true -> {N, B}
     end.
-empty_stems(0) -> [];
-empty_stems(N) -> [stem:new_empty()|empty_stems(N-1)].
+empty_stems(0, _) -> [];
+empty_stems(N, CFG) -> [stem:new_empty(CFG)|empty_stems(N-1, CFG)].
