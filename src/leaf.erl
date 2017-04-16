@@ -28,7 +28,7 @@ path_maker(K, CFG) ->
     T = cfg:path(CFG)*8,
     flip_bytes(<<K:T>>).
 value(L) -> L#leaf.value.
-meta(X) -> L#leaf.meta.
+meta(X) -> X#leaf.meta.
 put(Leaf, CFG) ->
     dump:put(serialize(Leaf, CFG), 
 	     ids:leaf(CFG)).
