@@ -5,15 +5,19 @@
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,
-    S = cfg:value(CFG) * 8,
-    S = size(X#leaf.value) * 8,
+    S = cfg:value(CFG),
+    S = size(X#leaf.value),
     %io:fwrite({CFG, X}),
-    <<(X#leaf.key):P, (X#leaf.value)/binary, (X#leaf.meta):M>>.
+    <<(X#leaf.key):P, 
+      (X#leaf.meta):M,
+      (X#leaf.value)/binary>>.
 deserialize(A, CFG) ->
     L = cfg:value(CFG) * 8,
     P = cfg:path(CFG) * 8,
     MS = cfg:meta(CFG) * 8,
-    <<Key:P, Value:L, Meta:MS>> = A,
+    <<Key:P, 
+      Meta:MS,
+      Value:L>> = A,
     #leaf{key = Key, value = <<Value:L>>, meta = Meta}. 
 new(Key, Value, Meta, CFG) ->
     true = Key > 0,

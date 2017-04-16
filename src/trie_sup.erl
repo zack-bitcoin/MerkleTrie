@@ -10,7 +10,7 @@ stop() -> halt().
 init([CFG, Amount, Mode]) ->
     %Size is the size of the data we store in the trie.
     KeyLength = cfg:path(CFG),
-    Size = cfg:value(CFG),
+    Size = cfg:value(CFG)+cfg:meta(CFG),
     ID = cfg:id(CFG),
     IDS = atom_to_list(ID),
     A2 = list_to_atom(IDS++"_bits"),
