@@ -1,9 +1,7 @@
+We want to keep track of some more data in each leaf. This new data should not be hashed into the merkel tree. 
+
+
 store:store/5 needs to be fixed. there are comments on how.
-
-
-
-
-Since we aren't using random_get, we should delete the code, and get rid of the "weight" in the stems.
 
 
 get:get.
