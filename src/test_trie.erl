@@ -1,5 +1,5 @@
 -module(test_trie).
--export([test/0]).
+-export([test/0, test/2]).
 
 -define(ID, trie01).
 
@@ -249,8 +249,10 @@ test(9, CFG) ->
     Root3 = trie:delete(Key, Root2, trie01),
     {RH, empty, _Proof} = trie:get(Key, Root3, trie01),
     S = stem:get(0, CFG),
-    success.
+    success;
     
+test(10, _CFG) ->
+    trie:get_all(0, trie01).
     
 
 test3a(0, _, L) -> L;
