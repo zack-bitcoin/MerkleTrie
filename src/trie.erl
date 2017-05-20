@@ -12,7 +12,6 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, _) -> io:format("died!"), ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast({garbage, Keepers}, CFG) -> 
-    io:fwrite("gabage 2\n"),
     garbage:garbage(Keepers, CFG),
     {noreply, CFG};
 handle_cast({garbage_leaves, KLS}, CFG) -> 
@@ -52,7 +51,7 @@ get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root
 get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root}).
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
 garbage(Keepers, ID) -> 
-    io:fwrite("trie garbage \n"),
+    %io:fwrite("trie garbage \n"),
     gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).
 garbage_leaves(KLS, ID) ->
     gen_server:cast({global, ids:main_id(ID)}, {garbage_leaves, KLS}).

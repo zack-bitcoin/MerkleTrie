@@ -8,7 +8,7 @@ garbage_leaves(KeeperLeaves, CFG) ->
     ok.
 garbage(KeeperRoots, CFG) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
-    io:fwrite(integer_to_list(length(KeeperLeaves))),
+    %io:fwrite(integer_to_list(length(KeeperLeaves))),
     delete_stuff(0, KeeperStems, ids:stem(CFG)),
     delete_stuff(0, KeeperLeaves, ids:leaf(CFG)),
     dump_bits(KeeperLeaves, CFG),
