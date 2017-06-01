@@ -28,7 +28,16 @@ handle_call({put, Key, Value, Meta, Root}, _From, CFG) ->
 handle_call({get, Key, RootPointer}, _From, CFG) -> 
     P = leaf:path_maker(Key, CFG),
     {RootHash, L, Proof} = get:get(P, RootPointer, CFG),
-    {reply, {RootHash, L, Proof}, CFG};
+    L2 = if
+	     L == empty -> empty;
+	     true ->
+		 Key2 = leaf:key(L),
+		 if
+		     Key == Key2 -> L;
+		     true -> empty
+		 end
+	 end,
+    {reply, {RootHash, L2, Proof}, CFG};
 handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};

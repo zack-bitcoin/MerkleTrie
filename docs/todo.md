@@ -1,3 +1,5 @@
+check out this explanation: http://blog.notdot.net/2009/12/Damn-Cool-Algorithms-Log-structured-storagexs
+
 We want to keep track of some more data in each leaf. This new data should not be hashed into the merkel tree. 
 
 
