@@ -10,6 +10,7 @@ stop() -> halt().
 init([CFG, Amount, Mode]) ->
     %Size is the size of the data we store in the trie.
     KeyLength = cfg:path(CFG),
+    HashSize = cfg:hash_size(CFG),
     Size = cfg:value(CFG)+cfg:meta(CFG),
     ID = cfg:id(CFG),
     IDS = atom_to_list(ID),
@@ -20,7 +21,7 @@ init([CFG, Amount, Mode]) ->
     L2 = "data/" ++ IDS ++ "_trie_bits.db",
     Children = [{A3, {dump_sup, start_link, [A3, KeyLength+Size, Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A4, {dump_sup, start_link, [A4, 196+(16*KeyLength), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
-		{A4, {dump_sup, start_link, [A4, 4+(16*(HashSize + KeyLength), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		{A4, {dump_sup, start_link, [A4, 4+(16*(HashSize + KeyLength)), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A1, {file_manager, start_link, [L1, A1, Amount div 8, ram]}, permanent, 5000, worker, [file_manager]},
 		{A2, {bits, start_link, [A2, L2, Amount]}, permanent, 5000, worker, [bits]},
 		{A5, {trie, start_link, [CFG]}, permanent, 5000, worker, [trie]}
