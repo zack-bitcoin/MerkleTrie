@@ -1,7 +1,7 @@
 -module(get).
 -export([get/3]).
 
-get(Path, Root, CFG) -> %returns {RootHash, Path, Value, Proof}
+get(Path, Root, CFG) -> %returns {RootHash, Value, Proof}
     S = stem:get(Root, CFG),
     H = stem:hash(S, CFG),
     case get2(Path, S, [stem:hashes(S)], CFG) of
