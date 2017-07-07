@@ -26,15 +26,25 @@ api_smoke_test_() ->
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
-     [ {"Put - happy path", fun put_happy_path/0}
+     [ {"Initialization produces empty trie", fun init_as_empty/0}
+     , {"Put - happy path", fun put_happy_path/0}
      , {"Get - case empty", fun get_empty/0}
      , {"Put long key", fun put_long_key/0}
      ]
     }.
 
+init_as_empty() ->
+    assert_trie_empty(_Root = 0, ?ID).
+
+assert_trie_empty(Root = 0, Id) ->
+    ?assertEqual([], trie:get_all(Root, Id)),
+    Cfg = trie:cfg(Id),
+    ?assertEqual(stem:new_empty(Cfg), stem:get(Root, Cfg)),
+    ok.
+
 put_happy_path() ->
-    ?assertEqual([], trie:get_all(0, ?ID)),
     Root = 0,
+    assert_trie_empty(Root, ?ID),
     Key = 1,
     V = <<1,1>>,
     Meta = 0,
@@ -46,13 +56,14 @@ put_happy_path() ->
     ok.
 
 get_empty() ->
-    ?assertEqual([], trie:get_all(0, ?ID)),
-    {_, empty, _} = trie:get(_Key = 1, _Root = 0, ?ID),
+    Root = 0,
+    assert_trie_empty(Root, ?ID),
+    ?assertMatch({_, empty, _}, trie:get(_Key = 1, Root, ?ID)),
     ok.
 
 put_long_key() ->
-    ?assertEqual([], trie:get_all(0, ?ID)),
     Root = 0,
+    assert_trie_empty(Root, ?ID),
     Key = 1 bsl cfg:path(trie:cfg(?ID)),
     V = <<1,1>>,
     Meta = 0,
