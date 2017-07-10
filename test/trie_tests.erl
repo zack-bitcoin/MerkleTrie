@@ -65,12 +65,17 @@ get_empty() ->
 put_long_key() ->
     Root = 0,
     assert_trie_empty(Root, ?ID),
-    Key = 1 bsl cfg:path(trie:cfg(?ID)),
+    PathLengthBytes = cfg:path(trie:cfg(?ID)),
+    Key = 1 bsl (PathLengthBytes * 8),
     V = <<1,1>>,
     Meta = 0,
     Root2 = trie:put(Key, V, Meta, Root, ?ID),
-    {_, Leaf, _} = trie:get(Key, Root2, ?ID),
-    ?assertNotEqual(V, leaf:key(Leaf)),
+    ?assertMatch({_, empty, _}, trie:get(Key, Root2, ?ID)),
+    <<KeyUsedForPut:PathLengthBytes>> = <<Key:PathLengthBytes>>,
+    ?assertNotEqual(Key, KeyUsedForPut),
+    ?debugFmt("~nKey specified: ~p  Key actually used: ~p~n", [Key, KeyUsedForPut]),
+    {_, Leaf, _} = trie:get(KeyUsedForPut, Root2, ?ID),
+    ?assertEqual(KeyUsedForPut, leaf:key(Leaf)),
     ok.
 
 gc_keeping_root() ->
