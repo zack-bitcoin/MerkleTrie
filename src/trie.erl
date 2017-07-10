@@ -1,10 +1,8 @@
 -module(trie).
 -behaviour(gen_server).
 -export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2]).
-init(CFG) -> 
-    StemID = ids:stem(CFG),
-    ReplaceStem = <<0:(8*(dump:word(StemID)))>>,
-    0 = dump:put(ReplaceStem, StemID),
+init(CFG) ->
+    0 = stem:put(stem:new_empty(CFG), CFG),
     {ok, CFG}.
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
