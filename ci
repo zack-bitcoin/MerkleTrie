@@ -12,6 +12,7 @@ case "${1:?}" in
     install)
         BuildDir="${2:?}"
         ( cd "${BuildDir:?}" && ./rebar3 tree; )
+        ( cd "${BuildDir:?}" && ./rebar3 dialyzer -u true -s false; )
         ;;
     before_script)
         BuildDir="${2:?}"
@@ -20,5 +21,9 @@ case "${1:?}" in
     script)
         BuildDir="${2:?}"
         ( cd "${BuildDir:?}" && ./rebar3 eunit; )
+        ;;
+    after_success)
+        BuildDir="${2:?}"
+        ( cd "${BuildDir:?}" && ./rebar3 dialyzer; )
         ;;
 esac

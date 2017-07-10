@@ -11,3 +11,8 @@ before_script:
   - ./ci before_script "${TRAVIS_BUILD_DIR:?}"
 script:
   - ./ci script "${TRAVIS_BUILD_DIR:?}"
+after_success:
+  - ./ci after_success "${TRAVIS_BUILD_DIR:?}"
+cache:
+  directories:
+    - .plt
