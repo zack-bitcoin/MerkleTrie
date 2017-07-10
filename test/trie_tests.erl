@@ -35,8 +35,103 @@ api_smoke_test_() ->
      ]
     }.
 
+key_range_good_test_() ->
+    {foreach,
+     fun() ->
+	     ?debugFmt("~nCurrent working directory: ~p~n",
+		       [begin {ok, Cwd} = file:get_cwd(), Cwd end]),
+	     {ok, SupPid} =
+		 trie_sup:start_link(
+		   _KeyLength = 9,
+		   _Size = 2,
+		   _ID = ?ID,
+		   _Amount = 1000000,
+		   _Meta = 2,
+		   _HashSize = 12,
+		   _Mode = hd),
+	     ?debugFmt("~nTrie sup pid: ~p~n", [SupPid]),
+	     assert_trie_empty(0, ?ID),
+	     SupPid
+     end,
+     fun(SupPid) ->
+	     ?assert(is_process_alive(SupPid)),
+	     cleanup_alive_sup(SupPid),
+	     ?assertNot(is_process_alive(SupPid)),
+	     ok
+     end,
+     [ {"Put key range - case min key",
+	?_test(put_and_assert_key(_Key = 0, _Root = 0, ?ID))}
+     , {"Put key range - case max key",
+	?_test(put_and_assert_key(
+		 _Key = (1 bsl (cfg:path(trie:cfg(?ID)) * 8)) - 1,
+		 _Root = 0,
+		 ?ID))}
+     ]
+    }.
+
+key_range_bad_test_() ->
+    {foreach,
+     fun() ->
+	     ?debugFmt("~nCurrent working directory: ~p~n",
+		       [begin {ok, Cwd} = file:get_cwd(), Cwd end]),
+	     {ok, SupPid} =
+		 trie_sup:start_link(
+		   _KeyLength = 9,
+		   _Size = 2,
+		   _ID = ?ID,
+		   _Amount = 1000000,
+		   _Meta = 2,
+		   _HashSize = 12,
+		   _Mode = hd),
+	     ?debugFmt("~nTrie sup pid: ~p~n", [SupPid]),
+	     SupMonRef = erlang:monitor(process, SupPid),
+	     unlink(SupPid),
+	     assert_trie_empty(0, ?ID),
+	     {SupPid, SupMonRef}
+     end,
+     fun({SupPid, SupMonRef}) ->
+	     receive
+		 {'DOWN', SupMonRef, process, SupPid, Reason} ->
+		     ?debugFmt("~nTrie sup ~p exited for reason ~p~n",
+			       [SupPid, Reason]),
+		     ok
+	     end,
+	     ?assertNot(is_process_alive(SupPid)),
+	     ok
+     end,
+     [ {"Put key range - case negative key",
+	?_assertException(
+	   _, _,
+	   trie:put(_Key = -1, _Value = <<1,1>>, _Meta = 0, _Root = 0, ?ID))}
+     , {"Put key range - case too big key",
+	?_assertException(
+	   _, _,
+	   trie:put(_Key = 1 bsl (cfg:path(trie:cfg(?ID)) * 8),
+		    _Value = <<1,1>>, _Meta = 0, _Root = 0, ?ID))}
+     ]
+    }.
+
+cleanup_alive_sup(Sup) when is_pid(Sup) ->
+    SupMonRef = erlang:monitor(process, Sup),
+    unlink(Sup),
+    exit(Sup, Reason = shutdown),
+    receive
+	{'DOWN', SupMonRef, process, Sup, R} ->
+	    Reason = R,
+	    ok
+    end,
+    ok.
+
 assert_trie_empty(Root = 0, Id) ->
     ?assertEqual([], trie:get_all(Root, Id)),
+    ok.
+
+put_and_assert_key(Key, Root, Id) ->
+    V = <<1,1>>,
+    Meta = 0,
+    Root2 = trie:put(Key, V, Meta, Root, Id),
+    {_, Leaf, _} = trie:get(Key, Root2, Id),
+    ?assertEqual(Key, leaf:key(Leaf)),
     ok.
 
 put_happy_path() ->
@@ -86,15 +181,4 @@ gc_keeping_leaf() ->
     ?assertEqual(ok, trie:garbage_leaves([{leaf:path(Leaf2, Cfg), Root3}], ?ID)),
     {RootHash, Leaf2, Proof} = trie:get(K2, Root3, ?ID),
     ?assert(verify:proof(RootHash, Leaf2, Proof, Cfg)),
-    ok.
-
-cleanup_alive_sup(Sup) when is_pid(Sup) ->
-    SupMonRef = erlang:monitor(process, Sup),
-    unlink(Sup),
-    exit(Sup, Reason = shutdown),
-    receive
-	{'DOWN', SupMonRef, process, Sup, R} ->
-	    Reason = R,
-	    ok
-    end,
     ok.

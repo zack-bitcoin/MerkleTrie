@@ -1,5 +1,5 @@
 -module(leaf).
--compile(export_all).
+-export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2]).
 -record(leaf, {key = 0, value = 0, 
 	       meta = 0}). %meta is data we want to remember that doesn't get hashed into the merkle tree.
 serialize(X, CFG) ->
@@ -20,10 +20,18 @@ deserialize(A, CFG) ->
       Value:L>> = A,
     #leaf{key = Key, value = <<Value:L>>, meta = Meta}. 
 new(Key, Value, Meta, CFG) ->
-    true = Key > 0,
+    {ok, _} = {check_key(Key, cfg:path(CFG)), Key},
     L = cfg:value(CFG) * 8,
     <<_:L>> = Value,
     #leaf{key = Key, value = Value, meta = Meta}. 
+check_key(Key, LBytes) when is_integer(Key),
+			    Key >= 0,
+			    Key < (1 bsl (LBytes * 8)) ->
+    ok;
+check_key(Key, _) when is_integer(Key) ->
+    {error, key_out_of_range};
+check_key(_, _) ->
+    {error, key_not_integer}.
 key(L) -> L#leaf.key.
 path(L, CFG) ->
     K = key(L),
