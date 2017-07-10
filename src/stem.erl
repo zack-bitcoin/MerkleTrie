@@ -1,7 +1,7 @@
 %The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
 
 -module(stem).
--export([test/0,empty_root/1,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/5,new_empty/1,recover/5]).
+-export([test/0,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/5,new_empty/1,recover/5]).
 -record(stem, {types = empty_tuple(), pointers = empty_tuple(), hashes}).
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
 add(S, N, T, P, H) ->
@@ -66,7 +66,6 @@ empty_hashes(CFG) ->
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
-empty_root(CFG) -> serialize(new_empty(CFG), CFG).
 
 hash(S, CFG) when is_binary(S) ->
     hash(deserialize(S, CFG), CFG);
