@@ -2,8 +2,43 @@
 
 -module(stem).
 -export([test/0,get/2,put/2,type/2,hash/2,pointers/1,types/1,hashes/1,pointer/2,new/5,add/5,new_empty/1,recover/5]).
--record(stem, {types = empty_tuple(), pointers = empty_tuple(), hashes}).
+-export_type([stem/0,types/0,empty_t/0,stem_t/0,leaf_t/0,pointers/0,empty_p/0,hashes/0,hash/0,empty_hash/0,stem_p/0]).
+-record(stem, { types = empty_tuple() :: types()
+	      , pointers = empty_tuple() :: pointers()
+	      , hashes :: hashes()
+	      }).
+-opaque stem() :: #stem{}.
+-type types() :: {t(),t(),t(),t(),
+		  t(),t(),t(),t(),
+		  t(),t(),t(),t(),
+		  t(),t(),t(),t()}.
+-type t() :: type().
+-type type() :: empty_t() | stem_t() | leaf_t().
+-type empty_t() :: 0.
+-type stem_t() :: 1.
+-type leaf_t() :: 2.
+-type pointers() :: {p(),p(),p(),p(),
+		     p(),p(),p(),p(),
+		     p(),p(),p(),p(),
+		     p(),p(),p(),p()}.
+-type p() :: pointer().
+-type pointer() :: empty_p() | stem_p() | leaf:leaf_p().
+-type empty_p() :: 0.
+-type hashes() :: {h(),h(),h(),h(),
+		   h(),h(),h(),h(),
+		   h(),h(),h(),h(),
+		   h(),h(),h(),h()}.
+-type h() :: hash().
+-type hash() :: hash(cfg:hash_size()).
+-type hash(_CfgHashSizeBytes) :: non_empty_binary(). % non-empty because configured hash size positive
+-type empty_hash() :: hash().
+-opaque stem_p() :: non_neg_integer().
+-type nibble() :: 0..15.
+-type non_empty_binary() :: <<_:8, _:_*8>>.
 empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
+-spec add(stem(), nibble(), leaf_t(), leaf:leaf_p(), hash()) -> stem();
+	 (stem(), nibble(), stem_t(), stem_p(), hash()) -> stem();
+	 (stem(), nibble(), empty_t(), empty_p(), empty_hash()) -> stem().
 add(S, N, T, P, H) ->
     M = N+1,
     Ty = S#stem.types,
@@ -13,6 +48,7 @@ add(S, N, T, P, H) ->
     P2 = setelement(M, Po, P),
     H2 = setelement(M, Ha, H),
     #stem{types = T2, pointers = P2, hashes = H2}.
+-spec new_empty(cfg:cfg()) -> stem().
 new_empty(CFG) -> #stem{hashes = empty_hashes(CFG)}.
 recover(M, T, P, H, Hashes) ->
     S = #stem{hashes = Hashes},
@@ -22,12 +58,17 @@ new(M, T, P, H, CFG) ->
     %T is the type, P is the pointer, H is the Hash
     S = new_empty(CFG),
     add(S, M, T, P, H).
+-spec pointers(stem()) -> pointers().
 pointers(R) -> R#stem.pointers.
+-spec types(stem()) -> types().
 types(R) -> R#stem.types.
+-spec hashes(stem()) -> hashes().
 hashes(R) -> R#stem.hashes.
+-spec pointer(1..16, stem()) -> pointer().
 pointer(N, R) ->
     T = pointers(R),
     element(N, T).
+-spec type(1..16, stem()) -> type().
 type(N, R) ->
     T = types(R),
     element(N, T).
@@ -67,6 +108,7 @@ empty_hashes(CFG) ->
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
 
+-spec hash(Hashes::any(), cfg:cfg()) -> hash().
 hash(S, CFG) when is_binary(S) ->
     hash(deserialize(S, CFG), CFG);
 hash(S, CFG) when is_tuple(S) and (size(S) == 16)->    
@@ -83,8 +125,10 @@ hash2(N, H, X, CFG) ->
     %12 = size(A),
     HS = size(A),
     hash2(N+1, H, <<A/binary, X/binary>>, CFG).
+-spec put(stem(), cfg:cfg()) -> stem_p().
 put(Stem, CFG) ->
     dump:put(serialize(Stem, CFG), ids:stem(CFG)).
+-spec get(stem_p(), cfg:cfg()) -> stem().
 get(Pointer, CFG) -> 
     S = dump:get(Pointer, ids:stem(CFG)),
     deserialize(S, CFG).

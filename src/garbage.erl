@@ -6,6 +6,7 @@ garbage_leaves(KeeperLeaves, CFG) ->
     delete_stuff(0, KL, ids:leaf(CFG)),
     delete_stuff(0, [0|KeeperStems], ids:stem(CFG)),
     ok.
+-spec garbage([stem:stem_p()], cfg:cfg()) -> ok.
 garbage(KeeperRoots, CFG) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
     %io:fwrite(integer_to_list(length(KeeperLeaves))),
