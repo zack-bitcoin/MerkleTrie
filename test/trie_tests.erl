@@ -30,6 +30,7 @@ api_smoke_test_() ->
      , {"Put - happy path", fun put_happy_path/0}
      , {"Get - case empty", fun get_empty/0}
      , {"Put long key", fun put_long_key/0}
+     , {"Garbage collection keeping a root (i.e. a stem)", fun gc_keeping_root/0}
      ]
     }.
 
@@ -70,6 +71,18 @@ put_long_key() ->
     Root2 = trie:put(Key, V, Meta, Root, ?ID),
     {_, Leaf, _} = trie:get(Key, Root2, ?ID),
     ?assertNotEqual(V, leaf:key(Leaf)),
+    ok.
+
+gc_keeping_root() ->
+    Root = 0,
+    assert_trie_empty(Root, ?ID),
+    Key = 1,
+    V = <<1,1>>,
+    Meta = 0,
+    Root2 = trie:put(Key, V, Meta, Root, ?ID),
+    ?assertEqual(ok, trie:garbage([Root2], ?ID)),
+    {Root2Hash, Leaf, Proof} = trie:get(Key, Root2, ?ID),
+    ?assert(verify:proof(Root2Hash, Leaf, Proof, trie:cfg(?ID))),
     ok.
 
 cleanup_alive_trie_sup(Sup) when is_pid(Sup) ->
