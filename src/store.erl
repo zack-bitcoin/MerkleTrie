@@ -70,23 +70,26 @@ get_branch(Path, N, Parent, Trail, CFG) ->
 		    {Leaf, Pointer, RP}
 	    end
     end.
-store_branch([], Path, _, Pointer, _, CFG) ->
+store_branch(Branch = [_|_], Path, Type, Pointer, Hash, CFG) when Type =:= 0;
+								  Type =:= 2 ->
+    store_branch_internal(Branch, Path, Type, Pointer, Hash, CFG).
+store_branch_internal([], Path, _, Pointer, _, CFG) ->
     %Instead of getting the thing, we can build it up while doing store.
     {Hash, _, Proof} = get:get(Path, Pointer, CFG),
     {Hash, Pointer, Proof};
 
     %case get:get(Path, Pointer, CFG) of
 	%{Hash, _, Proof} -> {Hash, Pointer, Proof};
-	%empty -> store_branch([], Path, 0, Pointer, 0, CFG)
+	%empty -> store_branch_internal([], Path, 0, Pointer, 0, CFG)
     %end;
-store_branch([B|Branch], Path, Type, Pointer, Hash, CFG) ->
+store_branch_internal([B|Branch], Path, Type, Pointer, Hash, CFG) ->
     S = length(Branch),
     NN = 4*S,
     <<_:NN, A:4, _/bitstring>> = Path,
     S1 = stem:add(B, A, Type, Pointer, Hash),
     Loc = stem:put(S1, CFG),
     SH = stem:hash(S1, CFG),
-    store_branch(Branch, Path, 1, Loc, SH, CFG).
+    store_branch_internal(Branch, Path, 1, Loc, SH, CFG).
 %add(L) -> add(L, 0).
 %add([], X) -> X;
 %add([H|T], X) -> add(T, H+X).
