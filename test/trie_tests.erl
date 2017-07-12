@@ -30,6 +30,7 @@ api_smoke_test_() ->
 	?_test(assert_trie_empty(_Root = 0, ?ID))}
      , {"Put - happy path", fun put_happy_path/0}
      , {"Get - case empty", fun get_empty/0}
+     , {"Delete - happy path", fun delete_happy_path/0}
      , {"Garbage collection keeping a root (i.e. a stem)", fun gc_keeping_root/0}
      , {"Garbage collection keeping a leaf", fun gc_keeping_leaf/0}
      ]
@@ -151,6 +152,20 @@ get_empty() ->
     Root = 0,
     assert_trie_empty(Root, ?ID),
     ?assertMatch({_, empty, _}, trie:get(_Key = 1, Root, ?ID)),
+    ok.
+
+delete_happy_path() ->
+    Root = 0,
+    assert_trie_empty(Root, ?ID),
+    Key = 1,
+    V = <<1,1>>,
+    Meta = 0,
+    Root2 = trie:put(Key, V, Meta, Root, ?ID),
+    {_, Leaf, _} = trie:get(Key, Root2, ?ID),
+    ?assertEqual(V, leaf:value(Leaf)),
+    Root3 = trie:delete(Key, Root2, ?ID),
+    ?assertMatch({_, empty, _}, trie:get(Key, Root3, ?ID)),
+    ?assertEqual([], trie:get_all(Root3, ?ID)),
     ok.
 
 gc_keeping_root() ->
