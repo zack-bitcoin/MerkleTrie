@@ -2,7 +2,7 @@
 -export([store/3, store/5, get_branch/5, store_branch/6]).
 -export_type([branch/0, nonempty_branch/0]).
 
--type branch() :: [stem:stem()]. % head is most distant from root i.e. closest to leaf (if any)
+-type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
 -type nonempty_branch() :: [stem:stem(), ...].
 
 store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.

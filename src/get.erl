@@ -2,7 +2,7 @@
 -export([get/3]).
 -export_type([proof/0]).
 
--type proof() :: [stem:hashes(), ...].
+-type proof() :: [stem:hashes(), ...]. % the last element is the 16-hashes-tuple contained in the root
 
 -spec get(leaf:path(), stem:stem_p(), cfg:cfg()) ->
 		 {RootHash::stem:hash(), Value, proof()}

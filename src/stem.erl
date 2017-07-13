@@ -108,7 +108,9 @@ empty_hashes(CFG) ->
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
      <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
 
--spec hash(Hashes::any(), cfg:cfg()) -> hash().
+-spec hash(Hashes, cfg:cfg()) -> hash() when
+      Hashes :: SerializedStem | hashes() | stem(),
+      SerializedStem :: binary().
 hash(S, CFG) when is_binary(S) ->
     hash(deserialize(S, CFG), CFG);
 hash(S, CFG) when is_tuple(S) and (size(S) == 16)->    
