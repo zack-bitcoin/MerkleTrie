@@ -11,8 +11,9 @@
 -type meta() :: non_neg_integer().
 -opaque leaf_p() :: non_neg_integer().
 -type path() :: path(cfg:path()).
--type path(_CfgPathSizeBytes) :: non_empty_binary(). % non-empty because configured path size positive
--type non_empty_binary() :: <<_:8, _:_*8>>.
+-type path(_CfgPathSizeBytes) :: [nib(), ...]. % non-empty because configured path size positive
+-type nib() :: <<_:4>>.
+
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,
@@ -52,10 +53,7 @@ path(L, CFG) ->
 -spec path_maker(key(), cfg:cfg()) -> path().
 path_maker(K, CFG) ->
     T = cfg:path(CFG)*8,
-    Nibs = lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]),
-    list_to_bitstring(Nibs). %TODO remove when we can handle lists of nibbles
-% TODO enable for handling list of nibbles -type nib() :: <<_:4>>.
-% TODO change to -type path() :: list(nib()).
+    lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]).
 
 value(L) -> L#leaf.value.
 meta(X) -> X#leaf.meta.
