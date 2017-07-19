@@ -52,7 +52,11 @@ path(L, CFG) ->
 -spec path_maker(key(), cfg:cfg()) -> path().
 path_maker(K, CFG) ->
     T = cfg:path(CFG)*8,
-    flip_bytes(<<K:T>>).
+    Nibs = lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]),
+    list_to_bitstring(Nibs). %TODO remove when we can handle lists of nibbles
+% TODO enable for handling list of nibbles -type nib() :: <<_:4>>.
+% TODO change to -type path() :: list(nib()).
+
 value(L) -> L#leaf.value.
 meta(X) -> X#leaf.meta.
 -spec put(leaf(), cfg:cfg()) -> leaf_p().
@@ -68,7 +72,3 @@ hash(L, CFG) ->
     P = cfg:path(CFG) * 8,
     HS = cfg:hash_size(CFG),
     hash:doit(<<(L#leaf.key):P, (L#leaf.value)/binary>>, HS).
-flip_bytes(X) -> flip_bytes(X, <<>>).
-flip_bytes(<<>>, X) -> X;
-flip_bytes(<<N:4, T/bitstring>>, X) -> 
-    flip_bytes(T, <<N:4, X/bitstring>>).
