@@ -38,13 +38,41 @@ new({_,_,Id}) ->
     State = #state{trie_id = TrieId, root = Root},
     {ok, State}.
 
+run(root_hash, _KeyGen, _ValueGen, State = #state{}) ->
+    _ = trie:root_hash(State#state.trie_id, State#state.root),
+    {ok, State};
+run(put, KeyGen, ValueGen, State = #state{}) ->
+    Key = KeyGen(),
+    Value = ValueGen(),
+    NewRoot = trie:put(Key, Value, _Meta = 0, State#state.root, State#state.trie_id),
+    NewState = State#state{root = NewRoot},
+    {ok, NewState};
 run(get, KeyGen, _ValueGen, State = #state{}) ->
     Key = KeyGen(),
     case trie:get(Key, State#state.root, State#state.trie_id) of
-        {_, empty, _} ->
-            {ok, State};
-        {_, _, _} ->
-            {ok, State};
-        Unknown ->
-            {error, Unknown}
+	{_, empty, _} ->
+	    {ok, State};
+	{_, _, _} ->
+	    {ok, State};
+	Unknown ->
+	    {error, Unknown, State}
+    end;
+run(get_all, _KeyGen, _ValueGen, State = #state{}) ->
+    case trie:get_all(State#state.root, State#state.trie_id) of
+	L when is_list(L) ->
+	    {ok, State};
+	Unknown ->
+	    {error, Unknown, State}
+    end;
+run(delete, KeyGen, _ValueGen, State = #state{}) ->
+    Key = KeyGen(),
+    NewRoot = trie:delete(Key, State#state.root, State#state.trie_id),
+    NewState = State#state{root = NewRoot},
+    {ok, NewState};
+run(garbage, _KeyGen, _ValueGen, State = #state{}) ->
+    case trie:garbage([State#state.root], State#state.trie_id) of
+	ok ->
+	    {ok, State};
+	Unknown ->
+	    {error, Unknown, State}
     end.
