@@ -1,9 +1,11 @@
-sudo: false
+dist: trusty
+sudo: required
 language: erlang
 otp_release:
   - 19.3.6.1
   - 18.3
 before_install:
+  - if test smokeloadtest = "${JOB:?}"; then sudo apt-get -qq update && sudo apt-get install -y r-cran-plyr r-cran-ggplot2; fi
   - ./ci before_install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 install:
   - ./ci install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
@@ -12,6 +14,9 @@ before_script:
 script:
   - ./ci script "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 matrix:
+  exclude:
+    - otp_release: 18.3
+      env: JOB=smokeloadtest
   allow_failures:
     - env: JOB=dialyzer
     - env: JOB=xref
@@ -20,6 +25,7 @@ env:
   - JOB=eunit
   - JOB=dialyzer
   - JOB=xref
+  - JOB=smokeloadtest
 cache:
   directories:
     - .plt

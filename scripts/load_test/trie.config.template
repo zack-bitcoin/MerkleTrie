@@ -1,0 +1,24 @@
+%% -*- mode: erlang;-*-
+{mode, {rate, 1}}. %% `max`, i.e. as many ops/s as possible, or `{rate, N}`, i.e. N ops/s, with exponentially distributed interarrival times.
+{concurrent, 1}. %% number of concurrent workers
+{duration, 1}. %% minutes
+
+{code_paths, CODE_PATHS_AS_STRING_LIST}. %% Paths of additional Erlang code e.g. `{code_paths, ["./foo/ebin", "./bar/ebin"]}.`
+
+{driver, basho_bench_driver_trie}.
+
+{operations, [{get, 1}]}. %% weighted list of operations the driver will run
+
+{key_generator, {uniform_int, 100}}. %% 1..N
+{value_generator, {fixed_bin, 2}}. %% random binary of size N bytes
+
+%% Driver-specific configuration below.
+{trie_id, trieLoadTest}.
+{trie_key_size_bytes, 9}.
+{trie_value_size_bytes, 2}.
+{trie_meta_size_bytes, 0}.
+{trie_hash_size_bytes, 12}.
+{trie_amount, 1000000}.
+{trie_mode, hd}.
+{trie_initial_empty_root, 0}.
+%% TODO parametrize trie storage location. E.g. `{trie_dir, "./tmp/trie.bench"}.`

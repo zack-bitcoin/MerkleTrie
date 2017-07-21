@@ -14,12 +14,26 @@ case "${1:?}"-"${2:?}" in
         ( cd "${BuildDir:?}" && ./rebar3 tree; )
         ( cd "${BuildDir:?}" && ./rebar3 dialyzer -u true -s false; )
         ;;
+    install-smokeloadtest)
+        BuildDir="${3:?}"
+        WorkDir="${BuildDir:?}"/tmp
+        mkdir "${WorkDir:?}" ## create working folder
+        ( cd "${WorkDir:?}" && git clone https://github.com/mrallen1/basho_bench.git && cd basho_bench && git checkout c92c71c09b17f5f2c983a31d2a6ec2db40de9bfe && PATH="${BuildDir:?}":"$PATH" make && file basho_bench; ) ## build load test tool "basho_bench"
+        mkdir "${WorkDir:?}"/R_libs ## create location for R libraries used by graph generation in basho_bench
+        ;;
     install-*)
         true
         ;;
     before_script-eunit)
         BuildDir="${3:?}"
         mkdir "${BuildDir:?}"/data
+        ;;
+    before_script-smokeloadtest)
+        BuildDir="${3:?}"
+        WorkDir="${BuildDir:?}"/tmp
+        ( cd "${BuildDir:?}" && ./rebar3 compile && ls "${BuildDir:?}"/_build/default/lib; ) ## compile trie library
+        mkdir "${WorkDir:?}"/ebin ## create location for trie library-specific module for basho_bench
+        mkdir "${WorkDir:?}"/basho_bench/data ## create location for data persisted by trie library
         ;;
     before_script-*)
         true
@@ -35,5 +49,13 @@ case "${1:?}"-"${2:?}" in
     script-xref)
         BuildDir="${3:?}"
         ( cd "${BuildDir:?}" && ./rebar3 xref; )
+        ;;
+    script-smokeloadtest)
+        BuildDir="${3:?}"
+        WorkDir="${BuildDir:?}"/tmp
+        erlc -o "${WorkDir:?}"/ebin "${BuildDir:?}"/scripts/load_test/basho_bench_driver_trie.erl && file "${WorkDir:?}"/ebin/basho_bench_driver_trie.beam ## compile trie library-specific module for basho_bench
+        sed -e "s|CODE_PATHS_AS_STRING_LIST|[\"${WorkDir:?}/ebin\", \"${BuildDir:?}/_build/default/lib/dump/ebin\", \"${BuildDir:?}/_build/default/lib/encrypter/ebin\", \"${BuildDir:?}/_build/default/lib/pink_hash/ebin\", \"${BuildDir:?}/_build/default/lib/trie/ebin\"]|" < "${BuildDir:?}"/scripts/load_test/trie.config.template > "${WorkDir:?}"/trie.config && cat "${WorkDir:?}"/trie.config ## instantiate load test configuration and show it
+        ( cd "${WorkDir:?}"/basho_bench && ./basho_bench --results-dir ./tests "${WorkDir:?}"/trie.config; ) ## run load test
+        ( cd "${WorkDir:?}"/basho_bench && ( R_LIBS="${WorkDir:?}"/R_libs && export R_LIBS && make results; ) && ( cd ./tests/current && ls -l; ) && file ./tests/current/summary.png; ) ## generate load test results graph
         ;;
 esac
