@@ -4,15 +4,22 @@ otp_release:
   - 19.3.6.1
   - 18.3
 before_install:
-  - ./ci before_install "${TRAVIS_BUILD_DIR:?}"
+  - ./ci before_install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 install:
-  - ./ci install "${TRAVIS_BUILD_DIR:?}"
+  - ./ci install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 before_script:
-  - ./ci before_script "${TRAVIS_BUILD_DIR:?}"
+  - ./ci before_script "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 script:
-  - ./ci script "${TRAVIS_BUILD_DIR:?}"
-after_success:
-  - ./ci after_success "${TRAVIS_BUILD_DIR:?}"
+  - ./ci script "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
+matrix:
+  allow_failures:
+    - env: JOB=dialyzer
+    - env: JOB=xref
+  fast_finish: true
+env:
+  - JOB=eunit
+  - JOB=dialyzer
+  - JOB=xref
 cache:
   directories:
     - .plt

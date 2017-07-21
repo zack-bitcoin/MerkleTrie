@@ -2,28 +2,38 @@
 
 set -ev # Ref https://docs.travis-ci.com/user/customizing-the-build/#Implementing-Complex-Build-Steps
 
-case "${1:?}" in
-    before_install)
+case "${1:?}"-"${2:?}" in
+    before_install-*)
         ## Travis CI does not support rebar3 yet. See https://github.com/travis-ci/travis-ci/issues/6506#issuecomment-275189490
-        BuildDir="${2:?}"
+        BuildDir="${3:?}"
         curl -fL -o "${BuildDir:?}"/rebar3 https://github.com/erlang/rebar3/releases/download/3.4.1/rebar3
         chmod +x "${BuildDir:?}"/rebar3
         ;;
-    install)
-        BuildDir="${2:?}"
+    install-dialyzer)
+        BuildDir="${3:?}"
         ( cd "${BuildDir:?}" && ./rebar3 tree; )
         ( cd "${BuildDir:?}" && ./rebar3 dialyzer -u true -s false; )
         ;;
-    before_script)
-        BuildDir="${2:?}"
+    install-*)
+        true
+        ;;
+    before_script-eunit)
+        BuildDir="${3:?}"
         mkdir "${BuildDir:?}"/data
         ;;
-    script)
-        BuildDir="${2:?}"
+    before_script-*)
+        true
+        ;;
+    script-eunit)
+        BuildDir="${3:?}"
         ( cd "${BuildDir:?}" && ./rebar3 eunit; )
         ;;
-    after_success)
-        BuildDir="${2:?}"
+    script-dialyzer)
+        BuildDir="${3:?}"
         ( cd "${BuildDir:?}" && ./rebar3 dialyzer; )
+        ;;
+    script-xref)
+        BuildDir="${3:?}"
+        ( cd "${BuildDir:?}" && ./rebar3 xref; )
         ;;
 esac
