@@ -219,6 +219,51 @@ key_range_bad_test_() ->
      ]
     }.
 
+delete_unexistent_key_test_() ->
+    {foreach,
+     fun() ->
+	     ?debugFmt("~nCurrent working directory: ~p~n",
+		       [begin {ok, Cwd} = file:get_cwd(), Cwd end]),
+	     {ok, SupPid} =
+		 trie_sup:start_link(
+		   _KeyLength = 9,
+		   _Size = 2,
+		   _ID = ?ID,
+		   _Amount = 1000000,
+		   _Meta = 2,
+		   _HashSize = 12,
+		   _Mode = hd),
+	     ?debugFmt("~nTrie sup pid: ~p~n", [SupPid]),
+	     assert_trie_empty(0, ?ID),
+	     SupPid
+     end,
+     fun(SupPid) ->
+	     ?assert(is_process_alive(SupPid)),
+	     cleanup_alive_sup(SupPid),
+	     ?assertNot(is_process_alive(SupPid)),
+	     ok
+     end,
+     [ {"Delete from empty tree",
+	?_test(trie:delete(_Key = 0, _Root = 0, ?ID))}
+     , {"Delete unexistent key from non-empty tree",
+	fun() ->
+		%% Test case identified by property-based testing.
+		K1 = 90,
+		K2 = 26,
+		%% The keys share the first nibble of the path.
+		?assertMatch({<<N1:4, _/bitstring>>,
+			      <<N1:4, _/bitstring>>},
+			     {leaf:path_maker(K1, trie:cfg(?ID)),
+			      leaf:path_maker(K2, trie:cfg(?ID))}),
+		trie:delete(
+		  K2,
+		  trie:put(K1, _V = <<1,1>>, _Meta = 1, _Root = 0, ?ID),
+		  ?ID),
+		ok
+	end}
+     ]
+    }.
+
 gc_test_() ->
     {foreach,
      fun() ->
