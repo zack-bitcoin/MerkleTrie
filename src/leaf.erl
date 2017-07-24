@@ -45,6 +45,7 @@ check_key(Key, _) when is_integer(Key) ->
     {error, key_out_of_range};
 check_key(_, _) ->
     {error, key_not_integer}.
+-spec key(leaf()) -> key().
 key(L) -> L#leaf.key.
 -spec path(leaf(), cfg:cfg()) -> path().
 path(L, CFG) ->
@@ -55,7 +56,9 @@ path_maker(K, CFG) ->
     T = cfg:path(CFG)*8,
     lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]).
 
+-spec value(leaf()) -> value().
 value(L) -> L#leaf.value.
+-spec meta(leaf()) -> meta().
 meta(X) -> X#leaf.meta.
 -spec put(leaf(), cfg:cfg()) -> leaf_p().
 put(Leaf, CFG) ->
