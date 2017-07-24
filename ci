@@ -40,7 +40,7 @@ case "${1:?}"-"${2:?}" in
         ;;
     script-eunit)
         BuildDir="${3:?}"
-        ( cd "${BuildDir:?}" && ./rebar3 eunit; )
+        ( cd "${BuildDir:?}" && ./rebar3 eunit && ./rebar3 proper; )
         ;;
     script-dialyzer)
         BuildDir="${3:?}"
