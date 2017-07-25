@@ -5,7 +5,10 @@
 
 %% Macros compatible with header `basho_bench.hrl` - in order not to
 %% require including it for compiling this module:
+-define(DEBUG(Str, Args), error_logger:info_msg(Str, Args)).
 -define(INFO(Str, Args), error_logger:info_msg(Str, Args)).
+-define(WARN(Str, Args), error_logger:warning_msg(Str, Args)).
+-define(ERROR(Str, Args), error_logger:error_msg(Str, Args)).
 
 -record(state, {
           trie_id,
@@ -29,7 +32,7 @@ new({_,_,Id}) ->
           MetaSizeBytes,
           HashSizeBytes,
           Mode),
-    ?INFO("Worker ~p using trie with id ~p and sup ~p.\n", [Id, TrieId, TrieSupPid]),
+    ?INFO("Worker ~p (~p) using trie with id ~p and sup ~p.\n", [Id, self(), TrieId, TrieSupPid]),
     Root = basho_bench_config:get(trie_initial_empty_root),
     {[], _} = {trie:get_all(Root, TrieId), {{worker_id, Id}, {trie_initial_allegedly_empy_root, Root}}},
     State = #state{trie_id = TrieId, root = Root},
