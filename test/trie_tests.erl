@@ -30,6 +30,7 @@ api_smoke_test_() ->
 	?_test(assert_trie_empty(_Root = 0, ?ID))}
      , {"Put - happy path", fun put_happy_path/0}
      , {"Get - case empty", fun get_empty/0}
+     , {"Delete - happy path", fun delete_happy_path/0}
      , {"Garbage collection keeping a root (i.e. a stem)", fun gc_keeping_root/0}
      , {"Garbage collection keeping a leaf", fun gc_keeping_leaf/0}
      ]
@@ -111,6 +112,66 @@ key_range_bad_test_() ->
      ]
     }.
 
+gc_test_() ->
+    {foreach,
+     fun() ->
+	     ?debugFmt("~nCurrent working directory: ~p~n",
+		       [begin {ok, Cwd} = file:get_cwd(), Cwd end]),
+	     {ok, SupPid} =
+		 trie_sup:start_link(
+		   _KeyLength = 9,
+		   _Size = 2,
+		   _ID = ?ID,
+		   _Amount = 1000000,
+		   _Meta = 2,
+		   _HashSize = 12,
+		   _Mode = hd),
+	     ?debugFmt("~nTrie sup pid: ~p~n", [SupPid]),
+	     assert_trie_empty(0, ?ID),
+	     SupPid
+     end,
+     fun(SupPid) ->
+	     ?assert(is_process_alive(SupPid)),
+	     cleanup_alive_sup(SupPid),
+	     ?assertNot(is_process_alive(SupPid)),
+	     ok
+     end,
+     [ {"Garbage collection keeping roots (i.e. stems) deletes nothing if specified stem is root",
+	fun() ->
+		Root = 0,
+		Key = 1,
+		V = <<1,1>>,
+		Meta = 0,
+		Root2 = trie:put(Key, V, Meta, Root, ?ID),
+		[Leaf] = trie:get_all(Root2, ?ID),
+		?assertEqual(ok, trie:garbage([Root2], ?ID)),
+		?assertEqual([Leaf], trie:get_all(Root2, ?ID)),
+		ok
+	end}
+     , {"Garbage collection keeping roots (i.e. stems) deletes things that are not descendent of specified stems",
+	fun() ->
+		Root = 0,
+		K1 = 1,
+		V1 = <<1,1>>,
+		K2 = 2,
+		V2 = <<1,2>>,
+		Meta = 0,
+		Root2A = trie:put(K1, V1, Meta, Root, ?ID),
+		Root2B = trie:put(K2, V2, Meta, Root, ?ID),
+		{_, L2, _} = trie:get(K2, Root2B, ?ID),
+		?assertEqual(V2, leaf:value(L2)),
+		{_, L1, _} = trie:get(K1, Root2A, ?ID),
+		?assertEqual(V1, leaf:value(L1)),
+		?assertEqual(ok, trie:garbage([Root2B], ?ID)),
+		?assertMatch({_, empty, _}, trie:get(K1, Root2A, ?ID)),
+		?assertEqual([], trie:get_all(Root2A, ?ID)),
+		?assertMatch({_, L2, _}, trie:get(K2, Root2B, ?ID)),
+		?assertMatch([_], trie:get_all(Root2B, ?ID)),
+		ok
+	end}
+     ]
+    }.
+
 cleanup_alive_sup(Sup) when is_pid(Sup) ->
     SupMonRef = erlang:monitor(process, Sup),
     unlink(Sup),
@@ -151,6 +212,20 @@ get_empty() ->
     Root = 0,
     assert_trie_empty(Root, ?ID),
     ?assertMatch({_, empty, _}, trie:get(_Key = 1, Root, ?ID)),
+    ok.
+
+delete_happy_path() ->
+    Root = 0,
+    assert_trie_empty(Root, ?ID),
+    Key = 1,
+    V = <<1,1>>,
+    Meta = 0,
+    Root2 = trie:put(Key, V, Meta, Root, ?ID),
+    {_, Leaf, _} = trie:get(Key, Root2, ?ID),
+    ?assertEqual(V, leaf:value(Leaf)),
+    Root3 = trie:delete(Key, Root2, ?ID),
+    ?assertMatch({_, empty, _}, trie:get(Key, Root3, ?ID)),
+    ?assertEqual([], trie:get_all(Root3, ?ID)),
     ok.
 
 gc_keeping_root() ->
