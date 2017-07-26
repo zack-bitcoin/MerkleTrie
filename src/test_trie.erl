@@ -200,10 +200,12 @@ test(6, CFG) ->
     timer:sleep(7000),
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     
-    {Hash, Root5, _} = store:store(Leafc, Hash, Proofc, Root6, CFG), %it is restoring the deleted leaf to the database.
-    {Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
-    {Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
-    true = verify:proof(Hash, Leafa, B2, CFG),
+    %{Hash, Root5, _} = store:store(Leafc, Hash, Proofc, Root6, CFG), %it is restoring the deleted leaf to the database.
+    %{Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
+    %{Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
+    %true = verify:proof(Hash, Leafa, B2, CFG),
+
+
 % the current implementation is very innefficient. It stores the entire proof onto the hard drive
     success;
 
