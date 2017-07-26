@@ -251,10 +251,8 @@ delete_unexistent_key_test_() ->
 		K1 = 90,
 		K2 = 26,
 		%% The keys share the first nibble of the path.
-		?assertMatch({<<N1:4, _/bitstring>>,
-			      <<N1:4, _/bitstring>>},
-			     {leaf:path_maker(K1, trie:cfg(?ID)),
-			      leaf:path_maker(K2, trie:cfg(?ID))}),
+		?assertEqual(hd(leaf:path_maker(K1, trie:cfg(?ID))),
+			     hd(leaf:path_maker(K2, trie:cfg(?ID)))),
 		trie:delete(
 		  K2,
 		  trie:put(K1, _V = <<1,1>>, _Meta = 1, _Root = 0, ?ID),
