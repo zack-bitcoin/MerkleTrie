@@ -11,8 +11,9 @@
 -type meta() :: non_neg_integer().
 -opaque leaf_p() :: non_neg_integer().
 -type path() :: path(cfg:path()).
--type path(_CfgPathSizeBytes) :: non_empty_binary(). % non-empty because configured path size positive
--type non_empty_binary() :: <<_:8, _:_*8>>.
+-type path(_CfgPathSizeBytes) :: [nib(), ...]. % non-empty because configured path size positive
+-type nib() :: <<_:4>>.
+
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,
@@ -52,7 +53,8 @@ path(L, CFG) ->
 -spec path_maker(key(), cfg:cfg()) -> path().
 path_maker(K, CFG) ->
     T = cfg:path(CFG)*8,
-    flip_bytes(<<K:T>>).
+    lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]).
+
 value(L) -> L#leaf.value.
 meta(X) -> X#leaf.meta.
 -spec put(leaf(), cfg:cfg()) -> leaf_p().
@@ -68,7 +70,3 @@ hash(L, CFG) ->
     P = cfg:path(CFG) * 8,
     HS = cfg:hash_size(CFG),
     hash:doit(<<(L#leaf.key):P, (L#leaf.value)/binary>>, HS).
-flip_bytes(X) -> flip_bytes(X, <<>>).
-flip_bytes(<<>>, X) -> X;
-flip_bytes(<<N:4, T/bitstring>>, X) -> 
-    flip_bytes(T, <<N:4, X/bitstring>>).
