@@ -1,7 +1,7 @@
 -module(leaf).
 -export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2]).
--record(leaf, {key = 0, value = 0, 
-	       meta = 0}). %meta is data we want to remember that doesn't get hashed into the merkle tree.
+-record(leaf, {key, value,
+	       meta}). %meta is data we want to remember that doesn't get hashed into the merkle tree.
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,
