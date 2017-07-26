@@ -1,5 +1,9 @@
 -module(store).
 -export([store/3, store/5, get_branch/5, store_branch/6]).
+-export_type([branch/0, nonempty_branch/0]).
+
+-type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
+-type nonempty_branch() :: [stem:stem(), ...].
 
 store(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
 
@@ -31,7 +35,11 @@ proof2branch([H|T], Type, Pointer, Hash, Path, CFG) ->
     [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
     
     
-store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
+-spec store(leaf:leaf(), stem:stem_p(), cfg:cfg()) ->
+		   {RootHash, RootPointer, get:proof()}
+		       when RootHash :: stem:hash(),
+			    RootPointer :: stem:stem_p().
+store(Leaf, Root, CFG) ->
     %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
     LPointer = leaf:put(Leaf, CFG),
     LH = leaf:hash(Leaf, CFG),
@@ -48,6 +56,13 @@ store(Leaf, Root, CFG) -> %returns {RootHash, RootPointer, Proof}
 		Branch
     end,
     store_branch(B, P, 2, LPointer, LH, CFG).
+-type path_nibble_index() :: path_nibble_index(cfg:path()).
+-type path_nibble_index(_CfgPathSizeBytes) :: non_neg_integer(). % 0..((cfg:path() * 2) - 1)
+-spec get_branch(Path::leaf:path(), StartInPath::path_nibble_index(),
+		 stem:stem_p(), branch(), cfg:cfg()) ->
+			{leaf:leaf(), leaf:leaf_p(), % leaf (and corresponding pointer) at returned branch and containing path different from the specified one
+			 Branch::nonempty_branch()} |
+			nonempty_branch(). % branch either (1) without leaf or (2) with leaf containing specified path
 get_branch(Path, N, Parent, Trail, CFG) ->
     %gather the branch as it currently looks.
     NN = 4*N,
@@ -70,6 +85,14 @@ get_branch(Path, N, Parent, Trail, CFG) ->
 		    {Leaf, Pointer, RP}
 	    end
     end.
+-spec store_branch(nonempty_branch(), leaf:path(),
+		   stem:leaf_t(), leaf:leaf_p(), stem:hash(),
+		   cfg:cfg()) -> Result when
+      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()};
+		  (nonempty_branch(), leaf:path(),
+		   stem:empty_t(), stem:empty_p(), stem:hash(),
+		   cfg:cfg()) -> Result when
+      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()}.
 store_branch(Branch = [_|_], Path, Type, Pointer, Hash, CFG) when Type =:= 0;
 								  Type =:= 2 ->
     store_branch_internal(Branch, Path, Type, Pointer, Hash, CFG).

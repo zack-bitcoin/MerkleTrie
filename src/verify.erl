@@ -1,5 +1,7 @@
 -module(verify).
 -export([proof/4]).
+
+-spec proof(stem:hash(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
 proof(RootHash, L, Proof, CFG) ->
     [H|F] = flip(Proof),
     SH = stem:hash(H, CFG),

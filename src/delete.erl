@@ -1,6 +1,7 @@
 -module(delete).
 -export([delete/3]).
 
+-spec delete(leaf:key(), stem:stem_p(), cfg:cfg()) -> stem:stem_p().
 delete(ID, Root, CFG) ->
     Path = leaf:path_maker(ID, CFG),
     Branch = store:get_branch(Path, 0, Root, [], CFG),
