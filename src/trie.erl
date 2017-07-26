@@ -52,11 +52,17 @@ cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
 root_hash(ID, RootPointer) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).
+-spec put(leaf:key(), leaf:value(), leaf:meta(), stem:stem_p(), atom()) ->
+		 stem:stem_p().
 put(Key, Value, Meta, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {put, Key, Value, Meta, Root}).
+-spec get(leaf:key(), stem:stem_p(), atom()) ->
+		 {stem:hash(), empty | leaf:leaf(), get:proof()}.
 get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
 get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root}).
+-spec delete(leaf:key(), stem:stem_p(), atom()) -> stem:stem_p().
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
+-spec garbage([stem:stem_p()], atom()) -> ok.
 garbage(Keepers, ID) -> 
     %io:fwrite("trie garbage \n"),
     gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).
