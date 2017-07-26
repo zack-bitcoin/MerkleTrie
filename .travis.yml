@@ -1,18 +1,31 @@
-sudo: false
+dist: trusty
+sudo: required
 language: erlang
 otp_release:
   - 19.3.6.1
   - 18.3
 before_install:
-  - ./ci before_install "${TRAVIS_BUILD_DIR:?}"
+  - if test smokeloadtest = "${JOB:?}"; then sudo apt-get -qq update && sudo apt-get install -y r-cran-plyr r-cran-ggplot2; fi
+  - ./ci before_install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 install:
-  - ./ci install "${TRAVIS_BUILD_DIR:?}"
+  - ./ci install "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 before_script:
-  - ./ci before_script "${TRAVIS_BUILD_DIR:?}"
+  - ./ci before_script "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
 script:
-  - ./ci script "${TRAVIS_BUILD_DIR:?}"
-after_success:
-  - ./ci after_success "${TRAVIS_BUILD_DIR:?}"
+  - ./ci script "${JOB:?}" "${TRAVIS_BUILD_DIR:?}"
+matrix:
+  exclude:
+    - otp_release: 18.3
+      env: JOB=smokeloadtest
+  allow_failures:
+    - env: JOB=dialyzer
+    - env: JOB=xref
+  fast_finish: true
+env:
+  - JOB=eunit
+  - JOB=dialyzer
+  - JOB=xref
+  - JOB=smokeloadtest
 cache:
   directories:
     - .plt
