@@ -1,5 +1,5 @@
 %% -*- mode: erlang;-*-
-{mode, {rate, 1}}. %% `max`, i.e. as many ops/s as possible, or `{rate, N}`, i.e. N ops/s, with exponentially distributed interarrival times.
+{mode, {rate, 10}}. %% `max`, i.e. as many ops/s as possible, or `{rate, N}`, i.e. N ops/s, with exponentially distributed interarrival times.
 {concurrent, 1}. %% number of concurrent workers
 {duration, 1}. %% minutes
 
@@ -7,7 +7,14 @@
 
 {driver, basho_bench_driver_trie}.
 
-{operations, [{get, 1}]}. %% weighted list of operations the driver will run
+{operations, %% weighted list of operations the driver will run
+ [ {root_hash, 1}
+ , {put, 1}
+ , {get, 1}
+ , {get_all, 1}
+ , {delete, 1}
+ , {garbage, 1}
+ ]}.
 
 {key_generator, {uniform_int, 100}}. %% 1..N
 {value_generator, {fixed_bin, 2}}. %% random binary of size N bytes
