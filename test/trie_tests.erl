@@ -22,7 +22,7 @@ api_smoke_test_() ->
      end,
      fun(SupPid) ->
 	     ?assert(is_process_alive(SupPid)),
-	     cleanup_alive_sup(SupPid),
+	     trie_test_utils:cleanup_alive_sup(SupPid),
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
@@ -56,7 +56,7 @@ root_hash_test_() ->
      end,
      fun(SupPid) ->
 	     ?assert(is_process_alive(SupPid)),
-	     cleanup_alive_sup(SupPid),
+	     trie_test_utils:cleanup_alive_sup(SupPid),
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
@@ -163,7 +163,7 @@ key_range_good_test_() ->
      end,
      fun(SupPid) ->
 	     ?assert(is_process_alive(SupPid)),
-	     cleanup_alive_sup(SupPid),
+	     trie_test_utils:cleanup_alive_sup(SupPid),
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
@@ -239,7 +239,7 @@ delete_unexistent_key_test_() ->
      end,
      fun(SupPid) ->
 	     ?assert(is_process_alive(SupPid)),
-	     cleanup_alive_sup(SupPid),
+	     trie_test_utils:cleanup_alive_sup(SupPid),
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
@@ -282,7 +282,7 @@ gc_test_() ->
      end,
      fun(SupPid) ->
 	     ?assert(is_process_alive(SupPid)),
-	     cleanup_alive_sup(SupPid),
+	     trie_test_utils:cleanup_alive_sup(SupPid),
 	     ?assertNot(is_process_alive(SupPid)),
 	     ok
      end,
@@ -321,17 +321,6 @@ gc_test_() ->
 	end}
      ]
     }.
-
-cleanup_alive_sup(Sup) when is_pid(Sup) ->
-    SupMonRef = erlang:monitor(process, Sup),
-    unlink(Sup),
-    exit(Sup, Reason = shutdown),
-    receive
-	{'DOWN', SupMonRef, process, Sup, R} ->
-	    Reason = R,
-	    ok
-    end,
-    ok.
 
 assert_trie_empty(Root = 0, Id) ->
     ?assertEqual([], trie:get_all(Root, Id)),

@@ -21,14 +21,14 @@ prop_from_data_dir_as_it_is() ->
 prop_from_clean_data_dir() ->
     {ok, Cwd} = file:get_cwd(),
     DataDir = filename:join([Cwd, "data"]),
-    cleanup_for_clean_data_dir(DataDir),
+    trie_test_utils:cleanup_for_clean_data_dir(DataDir),
     ?FORALL(Cmds, commands(?MODULE),
 	    begin
-		R1 = setup_for_clean_data_dir(DataDir),
+		R1 = trie_test_utils:setup_for_clean_data_dir(DataDir),
 		R2 = setup_trie(?ID),
 		{History, State, Result} = run_commands(?MODULE, Cmds),
 		cleanup_trie(R2),
-		cleanup_for_clean_data_dir(R1),
+		trie_test_utils:cleanup_for_clean_data_dir(R1),
 		?WHENFAIL(io:format("History: ~p~nState: ~p~nResult: ~p~n",
 				    [History, State, Result]),
 			  aggregate(command_names(Cmds), Result =:= ok))
@@ -46,29 +46,7 @@ setup_trie(Id) ->
     SupPid.
 
 cleanup_trie(SupPid) ->
-    cleanup_alive_sup(SupPid).
-
-setup_for_clean_data_dir(DataDir) ->
-    ?assert(filelib:is_dir(DataDir)),
-    ?assertEqual({ok, []}, file:list_dir_all(DataDir)),
-    DataDir.
-
-cleanup_for_clean_data_dir(DataDir) ->
-    DbFiles = filelib:wildcard(filename:join([DataDir, "*.db"])),
-    lists:foreach(fun(F) -> {ok, _} = {file:delete(F), F} end, DbFiles),
-    ?assertEqual({ok, []}, file:list_dir_all(DataDir)),
-    ok.
-
-cleanup_alive_sup(Sup) when is_pid(Sup) ->
-    SupMonRef = erlang:monitor(process, Sup),
-    unlink(Sup),
-    exit(Sup, Reason = shutdown),
-    receive
-	{'DOWN', SupMonRef, process, Sup, R} ->
-	    Reason = R,
-	    ok
-    end,
-    ok.
+    trie_test_utils:cleanup_alive_sup(SupPid).
 
 -record(state, {root}).
 
