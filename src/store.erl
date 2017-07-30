@@ -47,7 +47,7 @@ store(Leaf, Root, CFG) ->
     B = case get_branch(P, 0, Root, [], CFG) of
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
 	    %need to add 1 or more stems.
-		{A, N2} = path_match(P, leaf:path(Leaf2, CFG), 0),
+		{A, N2} = path_match(P, leaf:path(Leaf2, CFG)),
 		[H|T] = empty_stems(A-length(Branch)+1, CFG),
 		LH2 = leaf:hash(Leaf2, CFG),
 		H2 = stem:add(H, N2, 2, LP2, LH2),
@@ -114,7 +114,12 @@ store_branch_internal([B|Branch], Path, Type, Pointer, Hash, CFG) ->
 %add(L) -> add(L, 0).
 %add([], X) -> X;
 %add([H|T], X) -> add(T, H+X).
-path_match([<<A:4>> | P1], [<<B:4>> | P2], N) -> %returns {convergence_length, next nibble}
+-spec path_match(Path1::leaf:path(), Path2::leaf:path()) ->
+			{ConvergenceLength::path_nibble_index(),
+			 NextNibbleInPath2::stem:nibble()}.
+path_match(P1, P2) ->
+    path_match(P1, P2, 0).
+path_match([<<A:4>> | P1], [<<B:4>> | P2], N) ->
     if
 	A == B -> path_match(P1, P2, N+1);
 	true -> {N, B}

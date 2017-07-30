@@ -50,6 +50,7 @@ handle_call(cfg, _From, CFG) ->
     {reply, CFG, CFG}.
 cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
+-spec root_hash(atom(), stem:stem_p()) -> stem:hash().
 root_hash(ID, RootPointer) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).
 -spec put(leaf:key(), leaf:value(), leaf:meta(), stem:stem_p(), atom()) ->
@@ -59,6 +60,7 @@ put(Key, Value, Meta, Root, ID) ->
 -spec get(leaf:key(), stem:stem_p(), atom()) ->
 		 {stem:hash(), empty | leaf:leaf(), get:proof()}.
 get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+-spec get_all(stem:stem_p(), atom()) -> [leaf:leaf()].
 get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root}).
 -spec delete(leaf:key(), stem:stem_p(), atom()) -> stem:stem_p().
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
