@@ -1,12 +1,9 @@
 test_trie:test(6, _) used to do a test where we restored info to a trie that was no longer existing.
-This test is no longer passing, it needs to be fixed.
+This test was never passing, it needs to be fixed.
 
 
 
 check out this explanation: http://blog.notdot.net/2009/12/Damn-Cool-Algorithms-Log-structured-storagexs
-
-We want to keep track of some more data in each leaf. This new data should not be hashed into the merkel tree. 
-
 
 store:store/5 needs to be fixed. there are comments on how.
 

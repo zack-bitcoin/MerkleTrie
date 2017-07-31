@@ -34,8 +34,8 @@ deserialize(A, CFG) ->
 -spec new(key(), value(), meta(), cfg:cfg()) -> leaf().
 new(Key, Value, Meta, CFG) ->
     {ok, _} = {check_key(Key, cfg:path(CFG)), Key},
-    L = cfg:value(CFG) * 8,
-    <<_:L>> = Value,
+    %L = cfg:value(CFG) * 8,
+    %<<_:L>> = Value,
     #leaf{key = Key, value = Value, meta = Meta}. 
 check_key(Key, LBytes) when is_integer(Key),
 			    Key >= 0,
@@ -70,6 +70,11 @@ get(Pointer, CFG) ->
     deserialize(L, CFG).
 -spec hash(leaf(), cfg:cfg()) -> stem:hash().
 hash(L, CFG) ->   
-    P = cfg:path(CFG) * 8,
-    HS = cfg:hash_size(CFG),
-    hash:doit(<<(L#leaf.key):P, (L#leaf.value)/binary>>, HS).
+    HS = cfg:hash_size(CFG)*8,
+    case L#leaf.value of
+	empty -> <<0:HS>>;
+	V ->
+	    P = cfg:path(CFG) * 8,
+	    HS2 = cfg:hash_size(CFG),
+	    hash:doit(<<(L#leaf.key):P, V/binary>>, HS2)
+    end.

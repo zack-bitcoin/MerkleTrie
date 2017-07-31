@@ -5,8 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9],
+    %V = [1,2,3,4,5,6,7,8,9],
     %V = [6, 9],
+    V = [8],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -225,17 +226,19 @@ test(7, CFG) ->
     {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
     true = verify:proof(Hash0, Leaf2, B0, CFG);
     
-test(8, _CFG) ->    
+test(8, CFG) ->    
     V1 = <<1,1>>,
     Root = 0,
     Key = 1,
     Meta = 0, 
     Root2 = trie:put(Key, V1, Meta, Root, trie01),
-    {_, empty, _} = trie:get(2, Root2, trie01),
-    {_, empty, _} = trie:get(3, Root2, trie01),
+    {RootHash, empty, Proof} = trie:get(2, Root2, trie01),
+    {RootHash, empty, _} = trie:get(3, Root2, trie01),
     {_, empty, _} = trie:get(4, Root2, trie01),
     {_, Leaf, _} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
+    true = verify:proof(RootHash, leaf:new(2, empty, 0, CFG), 
+			Proof, CFG),
     success;
     
 test(9, CFG) ->
