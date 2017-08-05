@@ -72,6 +72,7 @@ test(1, CFG) ->
     {Root7, Loc7, _} = store:store(Leafcc, Loc6, CFG),
     {Root7, _, _} = store:store(Leafcc, Loc6, CFG),
     trie:garbage([Loc7], ?ID),
+    timer:sleep(100),
     trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
     0 = dump:put(ReplaceStem, ids:stem(CFG)),

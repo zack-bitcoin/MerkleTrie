@@ -9,13 +9,13 @@ start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, _) -> io:format("died!"), ok.
 handle_info(_, X) -> {noreply, X}.
-handle_cast({garbage, Keepers}, CFG) -> 
-    garbage:garbage(Keepers, CFG),
-    {noreply, CFG};
-handle_cast({garbage_leaves, KLS}, CFG) -> 
-    garbage:garbage_leaves(KLS, CFG),
-    {noreply, CFG};
 handle_cast(_, X) -> {noreply, X}.
+handle_call({garbage, Keepers}, _From, CFG) -> 
+    garbage:garbage(Keepers, CFG),
+    {reply, ok, CFG};
+handle_call({garbage_leaves, KLS}, _From, CFG) -> 
+    garbage:garbage_leaves(KLS, CFG),
+    {reply, ok, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->
     NewRoot = delete:delete(Key, Root, CFG),
     {reply, NewRoot, CFG};
@@ -39,9 +39,6 @@ handle_call({get, Key, RootPointer}, _From, CFG) ->
 handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};
-handle_call({garbage_leaves, KLS}, _From, CFG) -> 
-    garbage:garbage_leaves(KLS, CFG),
-    {reply, ok, CFG};
 handle_call({root_hash, RootPointer}, _From, CFG) ->
     S = stem:get(RootPointer, CFG),
     H = stem:hash(S, CFG),
@@ -67,9 +64,12 @@ delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key
 -spec garbage([stem:stem_p()], atom()) -> ok.
 garbage(Keepers, ID) -> 
     %io:fwrite("trie garbage \n"),
-    gen_server:cast({global, ids:main_id(ID)}, {garbage, Keepers}).
+    io:fwrite("garbage id is "),
+    io:fwrite(ID),
+    io:fwrite("\n"),
+    gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
 garbage_leaves(KLS, ID) ->
-    gen_server:cast({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
+    gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
 
 
 get_all_internal(Root, CFG) ->

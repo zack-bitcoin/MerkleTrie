@@ -2,31 +2,15 @@
 -export([garbage/2, garbage_leaves/2]).
 garbage_leaves(KeeperLeaves, CFG) ->
     {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
-    dump_bits(KL, CFG),
     delete_stuff(0, KL, ids:leaf(CFG)),
     delete_stuff(0, [0|KeeperStems], ids:stem(CFG)),
     ok.
 -spec garbage([stem:stem_p()], cfg:cfg()) -> ok.
 garbage(KeeperRoots, CFG) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
-    %io:fwrite(integer_to_list(length(KeeperLeaves))),
     delete_stuff(0, KeeperStems, ids:stem(CFG)),
     delete_stuff(0, KeeperLeaves, ids:leaf(CFG)),
-    dump_bits(KeeperLeaves, CFG),
     ok.
-
-dump_bits(T, CFG) -> [
-    begin
-        Leaf = leaf:get(K, CFG),
-        %TODO BEGIN verify if this is actually needed
-        Path = list_to_bitstring(leaf:path(Leaf, CFG)),
-        NN = cfg:path(CFG)*8,
-        <<P:NN>> = Path,
-        bits:delete(ids:bits(CFG), P)
-        %TODO END
-    end || K <- T ],
-    ok.
-
 keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
 keepers_backwards([], X, _) -> X;
 keepers_backwards([{Path, Root}|Leaves], {KS, KL}, CFG) -> 
