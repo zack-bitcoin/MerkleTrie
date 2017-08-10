@@ -17,7 +17,20 @@ proof(RootHash, L, Proof, CFG) ->
 proof_internal([<<N:4>> | _], Leaf, P, CFG) when length(P) == 1->
     P1 = hd(P),
     Hash = element(N+1, P1),
-    Hash == leaf:hash(Leaf, CFG);
+    io:fwrite("proof internal final\n"),
+    V = leaf:value(Leaf),
+    LH = leaf:hash(Leaf, CFG),
+    case V of
+	empty  ->
+	    if
+		not (Hash == LH) ->
+		    io:fwrite({Hash, LH});
+		    %ok;
+		true -> ok
+	    end;
+	_ -> ok
+    end,
+    Hash == LH;
 proof_internal([<<N:4>>| Path ], Leaf, [P1, P2 | Proof], CFG) ->
     Hash = element(N+1, P1),
     case stem:hash(P2, CFG) of
