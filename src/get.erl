@@ -28,10 +28,11 @@ get2([<<N:4>> | Path], Stem, Proof, CFG) ->
 	    Leaf2 = leaf:get(PN, CFG),
 	    LPath = leaf:path(Leaf2, CFG),
 	    B = same_end(LPath, Path, CFG),
+	    LV = leaf:value(Leaf2),
 	    if
 		B -> {Leaf2, Proof};
-		true -> 
-		    {empty, [Leaf2|Proof]}
+		LV == empty -> {empty, Proof};
+		true -> {empty, [Leaf2|Proof]}
 	    end
 	    %{Leaf2, Proof}
     end.
