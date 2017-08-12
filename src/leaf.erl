@@ -40,7 +40,8 @@ new(Key, Value, Meta, CFG) ->
     L = cfg:value(CFG) * 8,
     case Value of
 	empty -> ok;
-	<<_:L>> -> ok
+	<<_:L>> -> ok;
+	_ -> io:fwrite({value_is, Value})
     end,
     %L = cfg:value(CFG) * 8,
     %<<_:L>> = Value,
