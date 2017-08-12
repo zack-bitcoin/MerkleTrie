@@ -37,6 +37,11 @@ deserialize(A, CFG) ->
 new(Key, Value, Meta, CFG) ->
     P = cfg:path(CFG),
     ok = check_key(Key, P),
+    L = cfg:value(CFG) * 8,
+    case Value of
+	empty -> ok;
+	<<_:L>> -> ok
+    end,
     %L = cfg:value(CFG) * 8,
     %<<_:L>> = Value,
     #leaf{key = Key, value = Value, meta = Meta}. 

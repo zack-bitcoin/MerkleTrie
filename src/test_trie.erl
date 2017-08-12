@@ -17,6 +17,7 @@ test_helper([N|T], CFG) ->
     test_helper(T, CFG).
 
 test(1, CFG) ->
+    leaf:new(1, empty, 0, CFG),
     Nib1 = 4,
     Nib2 = 2,
     L = [<<Nib1:4>>,<<Nib2:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>],
