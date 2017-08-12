@@ -35,7 +35,8 @@ deserialize(A, CFG) ->
     #leaf{key = Key, value = <<Value:L>>, meta = Meta}. 
 -spec new(key(), value(), meta(), cfg:cfg()) -> leaf().
 new(Key, Value, Meta, CFG) ->
-    {ok, _} = {check_key(Key, cfg:path(CFG)), Key},
+    P = cfg:path(CFG),
+    ok = check_key(Key, P),
     %L = cfg:value(CFG) * 8,
     %<<_:L>> = Value,
     #leaf{key = Key, value = Value, meta = Meta}. 
