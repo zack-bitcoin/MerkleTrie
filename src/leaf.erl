@@ -1,6 +1,6 @@
 -module(leaf).
 -export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2,
-	is_leaf/1]).
+	is_serialized_leaf/2, test/0]).
 -export_type([leaf/0,key/0,value/0,meta/0,leaf_p/0,path/0]).
 -record(leaf, { key :: key()
 	      , value :: value()
@@ -14,8 +14,15 @@
 -type path() :: path(cfg:path()).
 -type path(_CfgPathSizeBytes) :: [nib(), ...]. % non-empty because configured path size positive
 -type nib() :: <<_:4>>.
-is_leaf(X) ->
-    is_record(X, leaf).
+is_serialized_leaf(X, CFG) ->
+    P = cfg:path(CFG),
+    M = cfg:meta(CFG),
+    S = cfg:value(CFG),
+    io:fwrite("size actually is "),
+    io:fwrite(integer_to_list(size(X))),
+    io:fwrite("\n"),
+    size(X) == (P + M + S).
+    %is_record(X, leaf).
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,
@@ -87,3 +94,12 @@ hash(L, CFG) ->
 	    HS2 = cfg:hash_size(CFG),
 	    hash:doit(<<(L#leaf.key):P, V/binary>>, HS2)
     end.
+test() ->
+    CFG = trie:cfg(trie01),
+    HS = cfg:hash_size(CFG)*8,
+    X = new(1, <<0:16>>, 0, CFG),
+    SX = serialize(X, CFG),
+    X = deserialize(serialize(X, CFG), CFG),
+    true = is_serialized_leaf(SX, CFG),
+    success.
+    

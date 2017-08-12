@@ -24,13 +24,14 @@ proof_internal([<<N:4>> | M], Leaf, P, CFG) when length(P) == 1->
 proof_internal([<<N:4>>| Path ], Leaf, [P1, P2 | Proof], CFG) ->
     %if leaf is empty, and P2 is a leaf, then we do a different test.
     %pass if hash(leaf) is in P1, and N does _not_ point to leaf P2.
-    LB = leaf:is_leaf(P2),
+    LB = leaf:is_serialized_leaf(P2, CFG),
     LV = leaf:value(Leaf),
     if
 	(LV == empty) and LB ->
-	    LH = leaf:hash(P2, CFG),
+	    Leaf2 = leaf:deserialize(P2, CFG),
+	    LH = leaf:hash(Leaf2, CFG),
 	    is_in(LH, tuple_to_list(P1)) 
-		and not(get:same_end(leaf:path(P2, CFG), 
+		and not(get:same_end(leaf:path(Leaf2, CFG), 
 				     [<<N:4>>|Path], 
 				     CFG));
 	true ->

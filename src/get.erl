@@ -32,7 +32,7 @@ get2([<<N:4>> | Path], Stem, Proof, CFG) ->
 	    if
 		B -> {Leaf2, Proof};
 		LV == empty -> {empty, Proof};
-		true -> {empty, [Leaf2|Proof]}
+		true -> {empty, [leaf:serialize(Leaf2, CFG)|Proof]}
 	    end
 	    %{Leaf2, Proof}
     end.
