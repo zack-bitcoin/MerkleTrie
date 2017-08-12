@@ -5,8 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,6,7,8,9],
-    V = [11],
+    V = [1,2,3,4,5,6,7,8,9,10,11],
+    %V = [11],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -271,13 +271,13 @@ test(11, CFG) ->
     {RootHash, Leaf1, Proof1} = trie:get(Key1, Root, trie01),
     {RootHash, empty, Proof2} = trie:get(Key2, Root, trie01),
     {RootHash, empty, Proof3} = trie:get(Key3, Root, trie01),
-    %{RootHash, empty, Proof4} = trie:get(Key4, Root, trie01),
+    {RootHash, empty, Proof4} = trie:get(Key4, Root, trie01),
     true = verify:proof(RootHash, Leaf1, Proof1, CFG),
     true = verify:proof(RootHash, leaf:new(Key1, V1, 0, CFG), Proof1, CFG),
     true = verify:proof(RootHash, leaf:new(Key2, empty, 0, CFG), Proof2, CFG),
     %io:fwrite({proofs, Proof2, Proof3}),
     true = verify:proof(RootHash, leaf:new(Key3, empty, 0, CFG), Proof3, CFG),
-    %true = verify:proof(RootHash, leaf:new(Key4, empty, 0, CFG), Proof4, CFG),
+    true = verify:proof(RootHash, leaf:new(Key4, empty, 0, CFG), Proof4, CFG),
     success.
     
     

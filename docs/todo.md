@@ -1,3 +1,12 @@
+The situation we care about is like this.
+Something has been stored in 3-3, and there is nothing else stored in 3, and we want to prove that 3-4 is empty.
+In order to prove this, we need to show that a leaf is stored in 3, and that the leaf doesn't point to 4.
+
+currently when you try to access something that doesn't exist, it returns 'empty'.
+But this is no good, if it is empty then we need to know the closest leaf above it to prove that it is empty.
+So get should probably return 4 things. besides returning a leaf, it should have a flag to tell us if this is the exact leaf, or the closest we could find.
+
+
 test_trie:test(6, _) used to do a test where we restored info to a trie that was no longer existing.
 This test was never passing, it needs to be fixed.
 

@@ -1,5 +1,6 @@
 -module(leaf).
--export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2]).
+-export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2,
+	is_leaf/1]).
 -export_type([leaf/0,key/0,value/0,meta/0,leaf_p/0,path/0]).
 -record(leaf, { key :: key()
 	      , value :: value()
@@ -13,7 +14,8 @@
 -type path() :: path(cfg:path()).
 -type path(_CfgPathSizeBytes) :: [nib(), ...]. % non-empty because configured path size positive
 -type nib() :: <<_:4>>.
-
+is_leaf(X) ->
+    is_record(X, leaf).
 serialize(X, CFG) ->
     P = cfg:path(CFG) * 8,
     M = cfg:meta(CFG) * 8,

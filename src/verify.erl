@@ -4,6 +4,7 @@
 -spec proof(stem:hash(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
 proof(RootHash, L, Proof, CFG) ->
     [H|F] = lists:reverse(Proof),
+    %[H|F] = Proof,
     SH = stem:hash(H, CFG),
     if
 	SH == RootHash ->
@@ -14,33 +15,37 @@ proof(RootHash, L, Proof, CFG) ->
     end.
 
 -spec proof_internal(leaf:path(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
-proof_internal([<<N:4>> | _], Leaf, P, CFG) when length(P) == 1->
+proof_internal([<<N:4>> | M], Leaf, P, CFG) when length(P) == 1->
     P1 = hd(P),
     Hash = element(N+1, P1),
-    io:fwrite("proof internal final\n"),
     V = leaf:value(Leaf),
     LH = leaf:hash(Leaf, CFG),
-    case V of
-	empty  ->
-	    if
-		not (Hash == LH) ->
-		    io:fwrite({Hash, LH});
-		    %ok;
-		true -> ok
-	    end;
-	_ -> ok
-    end,
     Hash == LH;
 proof_internal([<<N:4>>| Path ], Leaf, [P1, P2 | Proof], CFG) ->
-    Hash = element(N+1, P1),
-    case stem:hash(P2, CFG) of
-	Hash -> proof_internal(Path, Leaf, [P2 | Proof], CFG);
-	X ->
-	    io:fwrite(X),
-	    io:fwrite("false 3\n"),
-	    false
+    %if leaf is empty, and P2 is a leaf, then we do a different test.
+    %pass if hash(leaf) is in P1, and N does _not_ point to leaf P2.
+    LB = leaf:is_leaf(P2),
+    LV = leaf:value(Leaf),
+    if
+	(LV == empty) and LB ->
+	    LH = leaf:hash(P2, CFG),
+	    is_in(LH, tuple_to_list(P1)) 
+		and not(get:same_end(leaf:path(P2, CFG), 
+				     [<<N:4>>|Path], 
+				     CFG));
+	true ->
+	    Hash = element(N+1, P1),
+	    case stem:hash(P2, CFG) of
+		Hash -> proof_internal(Path, Leaf, [P2 | Proof], CFG);
+		X ->
+		    io:fwrite("false 3\n"),
+		    io:fwrite({X, Hash, [P1, P2|Proof]}),
+		    false
+	    end
     end;
 proof_internal(_, _, _, _) ->
     io:fwrite("false 2\n"),
     false.
-
+is_in(X, []) -> false;
+is_in(X, [X|_]) -> true;
+is_in(X, [A|T]) -> is_in(X, T).

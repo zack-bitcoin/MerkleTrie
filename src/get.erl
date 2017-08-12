@@ -1,5 +1,5 @@
 -module(get).
--export([get/3]).
+-export([get/3, same_end/3, test/0]).
 -export_type([proof/0]).
 
 -type proof() :: [stem:hashes(), ...]. % the last element is the 16-hashes-tuple contained in the root
@@ -19,11 +19,34 @@ get2([<<N:4>> | Path], Stem, Proof, CFG) ->
     PN = stem:pointer(N+1, Stem),
     case NextType of
 	0 -> %empty
+	    Next = stem:get(PN, CFG),
 	    {empty, Proof};
 	1 -> %another stem
 	    Next = stem:get(PN, CFG),
 	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
 	2 -> %leaf
 	    Leaf2 = leaf:get(PN, CFG),
-	    {Leaf2, Proof}
+	    LPath = leaf:path(Leaf2, CFG),
+	    B = same_end(LPath, Path, CFG),
+	    if
+		B -> {Leaf2, Proof};
+		true -> 
+		    {empty, [Leaf2|Proof]}
+	    end
+	    %{Leaf2, Proof}
     end.
+same_end(LPath, Path, CFG) ->
+    S = length(Path)*4,
+    LS = (length(LPath)*4) - S,
+    Path2 = tl_times(LS div 4, LPath),
+    Path2 == Path.
+tl_times(N, L) when N < 1 -> L;
+tl_times(N, L) ->
+    tl_times(N-1, tl(L)).
+
+test() ->
+    CFG = trie:cfg(trie01),
+    A = [1,2,3,4,5],
+    B = [3,4,5] ++ A,
+    true = same_end(B, A, CFG),
+    success.
