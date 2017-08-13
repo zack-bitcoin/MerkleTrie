@@ -18,9 +18,6 @@ is_serialized_leaf(X, CFG) ->
     P = cfg:path(CFG),
     M = cfg:meta(CFG),
     S = cfg:value(CFG),
-    io:fwrite("size actually is "),
-    io:fwrite(integer_to_list(size(X))),
-    io:fwrite("\n"),
     size(X) == (P + M + S).
     %is_record(X, leaf).
 serialize(X, CFG) ->
