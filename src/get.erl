@@ -11,20 +11,22 @@ get(Path, Root, CFG) ->
     S = stem:get(Root, CFG),
     H = stem:hash(S, CFG),
     case get2(Path, S, [stem:hashes(S)], CFG) of
+	{unknown, Proof} -> {H, unknown, Proof};
 	{empty, Proof} -> {H, empty, Proof};
 	{A, Proof} -> {H, A, Proof}
     end.       
 get2([<<N:4>> | Path], Stem, Proof, CFG) ->
     NextType = stem:type(N+1, Stem),
     PN = stem:pointer(N+1, Stem),
-    case NextType of
-	0 -> %empty
-	    Next = stem:get(PN, CFG),
+    if
+	NextType == 0 -> %empty
+	    %Next = stem:get(PN, CFG),
 	    {empty, Proof};
-	1 -> %another stem
+	PN == 0 -> {unknown, Proof};
+	NextType == 1 -> %another stem
 	    Next = stem:get(PN, CFG),
 	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
-	2 -> %leaf
+	NextType == 2 -> %leaf
 	    Leaf2 = leaf:get(PN, CFG),
 	    LPath = leaf:path(Leaf2, CFG),
 	    B = same_end(LPath, Path, CFG),
@@ -34,9 +36,8 @@ get2([<<N:4>> | Path], Stem, Proof, CFG) ->
 		LV == empty -> {empty, Proof};
 		true -> {empty, [leaf:serialize(Leaf2, CFG)|Proof]}
 	    end
-	    %{Leaf2, Proof}
     end.
-same_end(LPath, Path, CFG) ->
+same_end(LPath, Path, _CFG) ->
     S = length(Path)*4,
     LS = (length(LPath)*4) - S,
     Path2 = tl_times(LS div 4, LPath),

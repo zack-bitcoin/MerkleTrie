@@ -1,15 +1,44 @@
+%choices on how to fix garbage_leaves
+%1 we could cycle through every stem in the trie, check every pointer, and see if it is deleted.
+%2 we could rethink how garbage and garbage_leaves work, so keepers is combined with delete_stuff. Instead of cycling through every stem, we walk down the 
+
 -module(garbage).
 -export([garbage/2, garbage_leaves/2]).
 garbage_leaves(KeeperLeaves, CFG) ->
     {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
-    delete_stuff(0, KL, ids:leaf(CFG)),
-    delete_stuff(0, [0|KeeperStems], ids:stem(CFG)),
+    %We need to update all the Keeper stems, so that the empty things aren't pointed to.
+    DeletedLeaves = delete_stuff(1, KL, ids:leaf(CFG)),
+    DeletedStems = delete_stuff(1, [1|KeeperStems], ids:stem(CFG)),%maybe delete_stuff should return the locations of all deleted stems and leaves, that way we know what to replace with 0s.
+    remove_bad_pointers(1, [1|KeeperStems], DeletedStems, CFG),%1 is for stems
+    remove_bad_pointers(2, [1|KeeperStems], DeletedLeaves, CFG),%2 is for leaves
     ok.
+remove_bad_pointers(_, [], _, _) -> ok;
+remove_bad_pointers(PT, [K|KT], DS, CFG) ->
+    Stem = stem:get(K, CFG),
+    Pointers = stem:pointers(Stem),
+    Types = stem:types(Stem),
+    NewPointers = rbp2(PT, Pointers, Types, DS),
+    Stem2 = stem:update_pointers(Stem, NewPointers),
+    stem:put(Stem2, CFG),
+    remove_bad_pointers(PT, KT, DS, CFG).
+rbp2(PT, Pointers, Types, DS) ->
+    X = rbp3(tuple_to_list(Pointers),
+	      tuple_to_list(Types),
+	      DS, PT),
+    list_to_tuple(X).
+rbp3([], [], _, _) -> [];
+rbp3([P|PT], [T|TT], DS, PointerType) ->
+    B = lists:member(P, DS) and (T == PointerType),
+    case B of
+	true -> [0|rbp3(PT, TT, DS, PointerType)];
+	false -> [P|rbp3(PT, TT, DS, PointerType)]
+    end.
+	    
 -spec garbage([stem:stem_p()], cfg:cfg()) -> ok.
 garbage(KeeperRoots, CFG) ->
     {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
-    delete_stuff(0, KeeperStems, ids:stem(CFG)),
-    delete_stuff(0, KeeperLeaves, ids:leaf(CFG)),
+    delete_stuff(1, KeeperStems, ids:stem(CFG)),
+    delete_stuff(1, KeeperLeaves, ids:leaf(CFG)),
     ok.
 keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
 keepers_backwards([], X, _) -> X;
@@ -67,14 +96,14 @@ in_list(_, []) -> false;
 in_list(X, [_|Z]) -> in_list(X, Z).
 delete_stuff(N, Keepers, ID) ->
     S = dump:highest(ID) div dump:word(ID),
-    delete_stuff(S, N, Keepers, ID).
-delete_stuff(S, N, Keepers, Id) ->
+    delete_stuff(S, N, Keepers, ID, []).
+delete_stuff(S, N, Keepers, Id, Out) ->
     Bool = in_list(N, Keepers),
     if
-	N>=S -> ok;
+	N>=S -> Out;%we should go through the list of keepers and update any pointers that point to deleted data to instead point to 0.
 	Bool ->
-	    delete_stuff(S, N+1, Keepers, Id);
+	    delete_stuff(S, N+1, Keepers, Id, Out);
 	true ->
 	    dump:delete(N, Id),
-	    delete_stuff(S, N+1, Keepers, Id)
+	    delete_stuff(S, N+1, Keepers, Id, [N|Out])
     end.

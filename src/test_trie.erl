@@ -5,8 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,6,7,8,9,10,11],
-    V = [11],
+    V = [1,2,3,4,5,6,7,8,9,10,11],
+    %V = [6],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -76,20 +76,20 @@ test(1, CFG) ->
     timer:sleep(100),
     trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
-    0 = dump:put(ReplaceStem, ids:stem(CFG)),
+    1 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
     true = verify:proof(PP4,Leafcc,PP5,CFG),
     ok;
 
 test(2, CFG) ->
-    Loc = 0,
+    Loc = 1,
     %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     La = <<255, 0>>,
     Leaf = leaf:new(1, La, 0, CFG),
     store:store(Leaf, Loc, CFG);
 
 test(3, CFG) -> 
-    Loc = 0,
+    Loc = 1,
     Times = 1000,
     NewLoc = test3a(Times, Times, Loc),
     test3b(Times, NewLoc, CFG);
@@ -135,7 +135,7 @@ test(4, CFG) ->
     success;
 
 test(5, CFG) ->
-    Root0 = 0,
+    Root0 = 1,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
@@ -174,7 +174,7 @@ test(6, CFG) ->
     % The full merkel trie will be too big, most people wont keep track of it all. 
     % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
     % We don't get a proof of the final state. We only get a proof of the initial state, and the final state. It is possible to calculate the new proof from this. The reason we don't get the new proof is because depending on which txs get accepted into the block, the root hash of the new state will be different
-    Root0 = 0,
+    Root0 = 1,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
@@ -200,11 +200,16 @@ test(6, CFG) ->
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     garbage:garbage_leaves(GL, CFG),
     timer:sleep(7000),
-    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
-    
-    %{Hash, Root5, _} = store:store(Leafc, Hash, Proofc, Root6, CFG), %it is restoring the deleted leaf to the database.
-    %{Hash, Leafa, B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
-    %{Hash, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root5, CFG),
+    {Hash3, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
+    %{Hash3, empty, _} = get:get(leaf:path(Leafc, CFG), Root6, CFG),
+    RootStem = stem:update_pointers(stem:get(Root6, CFG),
+				    stem:empty_tuple()),
+    Root7 = trie:new_trie(trie01, RootStem),
+    Hash3 = trie:root_hash(trie01, Root7),
+    {Hash3, unknown, _} = get:get(leaf:path(Leafc, CFG), Root7, CFG),
+    {Hash3, Root8, _} = store:store(Leafc, Hash, Proofc, Root7, CFG), %it is restoring the deleted leaf to the database.
+    %{Hash, Leafa, _B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
+    {Hash3, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root8, CFG),
     %true = verify:proof(Hash, Leafa, B2, CFG),
 
 
@@ -212,7 +217,7 @@ test(6, CFG) ->
     success;
 
 test(7, CFG) ->
-    Root0 = 0,
+    Root0 = 1,
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     <<L1:40>> = <<0,0,0,0,2>>,
@@ -229,7 +234,7 @@ test(7, CFG) ->
     
 test(8, CFG) ->    
     V1 = <<1,1>>,
-    Root = 0,
+    Root = 1,
     Key = 1,
     Meta = 0, 
     Root2 = trie:put(Key, V1, Meta, Root, trie01),
@@ -243,22 +248,22 @@ test(8, CFG) ->
     success;
     
 test(9, CFG) ->
-    S = stem:get(0, CFG),
+    Root0 = 1,
+    S = stem:get(Root0, CFG),
     V1 = <<2,3>>,
-    Root = 0,
     Key = 5,
-    RH = trie:root_hash(trie01, 0),
+    RH = trie:root_hash(trie01, Root0),
     Meta = 0, 
-    Root2 = trie:put(Key, V1, Meta, Root, trie01),
+    Root2 = trie:put(Key, V1, Meta, Root0, trie01),
     {_, Leaf, _Proof1} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
     Root3 = trie:delete(Key, Root2, trie01),
     {RH, empty, _Proof} = trie:get(Key, Root3, trie01),
-    S = stem:get(0, CFG),
+    S = stem:get(Root0, CFG),
     success;
     
 test(10, _CFG) ->
-    trie:get_all(0, trie01);
+    trie:get_all(1, trie01);
 test(11, CFG) ->    
     Meta = 0,
     V1 = <<2,3>>,
@@ -266,7 +271,7 @@ test(11, CFG) ->
     Key2 = 2,
     Key3 = 257,
     Key4 = 513,
-    Root0 = 0,
+    Root0 = 1,
     Root = trie:put(Key1, V1, Meta, Root0, trie01),
     %Root = trie:put(Key3, V1, Meta, Root01, trie01),
     {RootHash, Leaf1, Proof1} = trie:get(Key1, Root, trie01),

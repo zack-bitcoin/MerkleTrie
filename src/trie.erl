@@ -1,8 +1,8 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2]).
 init(CFG) ->
-    0 = stem:put(stem:new_empty(CFG), CFG),
+    1 = stem:put(stem:new_empty(CFG), CFG),
     {ok, CFG}.
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
@@ -39,6 +39,9 @@ handle_call({get, Key, RootPointer}, _From, CFG) ->
 handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};
+handle_call({new_trie, RootStem}, _From, CFG) ->
+    X = stem:put(RootStem, CFG),
+    {reply, X, CFG};
 handle_call({root_hash, RootPointer}, _From, CFG) ->
     S = stem:get(RootPointer, CFG),
     H = stem:hash(S, CFG),
@@ -47,6 +50,8 @@ handle_call(cfg, _From, CFG) ->
     {reply, CFG, CFG}.
 cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
+new_trie(ID, RootStem) when is_atom(ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {new_trie, RootStem}).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
 root_hash(ID, RootPointer) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).

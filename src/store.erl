@@ -70,12 +70,12 @@ get_branch(Path, N, Parent, Trail, CFG) ->
     R = stem:get(Parent, CFG),
     Pointer = stem:pointer(A+1, R),
     RP = [R|Trail],
-    case stem:type(A+1, R) of
-	0 ->%empty
-	    RP;
-	1 ->%another stem
-	    get_branch(Path, M, Pointer, RP, CFG);
-	2 ->%a leaf. 
+    ST = stem:type(A+1, R),
+    if
+	ST == 0 -> RP;
+	Pointer == 0 -> RP;
+	ST == 1 -> get_branch(Path, M, Pointer, RP, CFG);
+	ST == 2 ->
 	    Leaf = leaf:get(Pointer, CFG),
 	    case leaf:path(Leaf, CFG) of
 		Path -> %overwrite
