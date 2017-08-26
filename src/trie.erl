@@ -40,7 +40,9 @@ handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};
 handle_call({new_trie, RootStem}, _From, CFG) ->
-    X = stem:put(RootStem, CFG),
+    %Stem = stem:empty_trie(Root, CFG),
+    Stem = stem:update_pointers(RootStem, stem:empty_tuple()),
+    X = stem:put(Stem, CFG),
     {reply, X, CFG};
 handle_call({root_hash, RootPointer}, _From, CFG) ->
     S = stem:get(RootPointer, CFG),
