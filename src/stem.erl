@@ -5,6 +5,7 @@
 	 types/1,hashes/1,pointer/2,new/5,add/5,
 	 new_empty/1,recover/5, empty_hashes/1, 
 	 update_pointers/2, empty_tuple/0,
+	 make/3,
 	 empty_trie/2]).
 -export_type([stem/0,types/0,empty_t/0,stem_t/0,leaf_t/0,pointers/0,empty_p/0,hashes/0,hash/0,empty_hash/0,stem_p/0,nibble/0]).
 -record(stem, { types = empty_tuple() :: types()
@@ -57,6 +58,10 @@ new_empty(CFG) -> #stem{hashes = empty_hashes(CFG)}.
 recover(M, T, P, H, Hashes) ->
     S = #stem{hashes = Hashes},
     add(S, M, T, P, H).
+make(Types, Pointers, Hashes) ->
+    #stem{types = Types,
+	  pointers = Pointers,
+	  hashes = Hashes}.
 new(M, T, P, H, CFG) ->
     %N is the nibble being pointed to.
     %T is the type, P is the pointer, H is the Hash
