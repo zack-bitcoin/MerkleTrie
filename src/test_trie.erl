@@ -5,8 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11],
-    %V = [6],
+    %V = [1,2,3,4,5,6,7,8,9,10,11],
+    V = [5],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -140,8 +140,8 @@ test(5, CFG) ->
     V2 = <<1,2>>,
     V3 = <<1,3>>,
     <<L1:40>> = <<0,0,0,0,1>>,
-    <<L2:40>> = <<0,16,0,0,0>>,
-    <<L3:40>> = <<0,1,0,0,0>>,
+    <<L2:40>> = <<0, 0,16,0,0>>,
+    <<L3:40>> = <<0, 0,1,0,2>>,
     Meta = 0,
     Leaf1 = leaf:new(L1, V1, Meta, CFG),
     Leaf2 = leaf:new(L2, V2, Meta, CFG),
@@ -149,23 +149,27 @@ test(5, CFG) ->
     Leaf4 = leaf:new(L3, V1, Meta, CFG),
     {_, Root1, _} = store:store(Leaf1, Root0, CFG),
     {Hash, Root2, Proof2} = store:store(Leaf2, Root1, CFG),
-    {Hash, Root3, _} = store:store(Leaf2, Root2, CFG),
+    {Hash, Root3, Proof3} = store:store(Leaf2, Root2, CFG),
     {Hash2, Root4, Proof4} = store:store(Leaf3, Root3, CFG),
+    {Hash2, Leaf2, Proof7} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    {Hash2, Leaf3, Proof8} = get:get(leaf:path(Leaf3, CFG), Root4, CFG),
     Lpath1 = leaf:path(Leaf1, CFG),
     X = [{Lpath1, Root4}],
-    io:fwrite("garbage leaves\n"),
     garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     %timer:sleep(500),
     timer:sleep(7000),
-    {Hash3, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
-    true = verify:proof(Hash3, Leaf1, Proof, CFG),
+    {Hash2, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
+    true = verify:proof(Hash2, Leaf1, Proof, CFG),
     true = verify:proof(Hash, Leaf2, Proof2, CFG),
-    {Hash4, Root5, Proof5} = store:store(Leaf3, Hash2, Proof4, Root4, CFG),
+    {Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    {Hash2, Root5, Proof5} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
+    {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
+    {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
     %we need to be able to add proofs for things into an empty database.
     true = verify:proof(Hash4, Leaf3, Proof5, CFG),
-    {Hash5, _Root6, Proof6} = store:store(Leaf4, Root5, CFG), %overwrite the same spot.
+    {Hash5, _, Proof6} = store:store(Leaf4, Root6, CFG), %overwrite the same spot.
     true = verify:proof(Hash5, Leaf4, Proof6, CFG),
     ok;
 
@@ -209,7 +213,7 @@ test(6, CFG) ->
     Root7 = trie:new_trie(trie01, stem:get(Root6, CFG)),
     Hash3 = trie:root_hash(trie01, Root7),
     {Hash3, unknown, _} = get:get(leaf:path(Leafc, CFG), Root7, CFG),
-    {Hash3, Root8, _} = store:store(Leafc, Hash, Proofc, Root7, CFG), %it is restoring the deleted leaf to the database.
+    {Hash3, Root8, _} = store:restore(Leafc, Hash, Proofc, Root7, CFG), %it is restoring the deleted leaf to the database.
     %{Hash, Leafa, _B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
     {Hash3, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root8, CFG),
     %true = verify:proof(Hash, Leafa, B2, CFG),

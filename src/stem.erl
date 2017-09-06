@@ -5,7 +5,7 @@
 	 types/1,hashes/1,pointer/2,new/5,add/5,
 	 new_empty/1,recover/5, empty_hashes/1, 
 	 update_pointers/2, empty_tuple/0,
-	 make/3,
+	 make/3, update/3,
 	 empty_trie/2]).
 -export_type([stem/0,types/0,empty_t/0,stem_t/0,leaf_t/0,pointers/0,empty_p/0,hashes/0,hash/0,empty_hash/0,stem_p/0,nibble/0]).
 -record(stem, { types = empty_tuple() :: types()
@@ -135,10 +135,11 @@ hash2(17, _, X, CFG) ->
 hash2(N, H, X, CFG) ->
     A = element(N, H),
     HS = cfg:hash_size(CFG),
-    %12 = size(A),
     HS = size(A),
     hash2(N+1, H, <<A/binary, X/binary>>, CFG).
 -spec put(stem(), cfg:cfg()) -> stem_p().
+update(Location, Stem, CFG) ->
+    dump:update(Location, serialize(Stem, CFG), ids:stem(CFG)).
 put(Stem, CFG) ->
     dump:put(serialize(Stem, CFG), ids:stem(CFG)).
 -spec get(stem_p(), cfg:cfg()) -> stem().

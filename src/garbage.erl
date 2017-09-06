@@ -19,7 +19,7 @@ remove_bad_pointers(PT, [K|KT], DS, CFG) ->
     Types = stem:types(Stem),
     NewPointers = rbp2(PT, Pointers, Types, DS),
     Stem2 = stem:update_pointers(Stem, NewPointers),
-    stem:put(Stem2, CFG),
+    stem:update(K, Stem2, CFG),
     remove_bad_pointers(PT, KT, DS, CFG).
 rbp2(PT, Pointers, Types, DS) ->
     X = rbp3(tuple_to_list(Pointers),
@@ -28,9 +28,11 @@ rbp2(PT, Pointers, Types, DS) ->
     list_to_tuple(X).
 rbp3([], [], _, _) -> [];
 rbp3([P|PT], [T|TT], DS, PointerType) ->
-    B = lists:member(P, DS) and (T == PointerType),
+    B = (lists:member(P, DS)) and (T == PointerType),
     case B of
-	true -> [0|rbp3(PT, TT, DS, PointerType)];
+	true -> 
+	    io:fwrite("remove pointer \n"),
+	    [0|rbp3(PT, TT, DS, PointerType)];
 	false -> [P|rbp3(PT, TT, DS, PointerType)]
     end.
 	    
@@ -46,7 +48,7 @@ keepers_backwards([{Path, Root}|Leaves], {KS, KL}, CFG) ->
     S = stem:get(Root, CFG),
     {Stems, Leaf} = kb2(Path, S, [Root], CFG),
     keepers_backwards(Leaves, 
-		      {append_no_repeats(KS, Stems), 
+		      {append_no_repeats(Stems, KS), 
 		       append_no_repeats([Leaf], KL)},
 		      CFG).
 kb2([<<N:4>> | Path], Stem, Keepers, CFG) ->
@@ -73,7 +75,7 @@ keepers([R|Roots], CFG) -> %returns {keeperstems, keeperleaves}
     end.
 append_no_repeats([],X) -> X;
 append_no_repeats([A|Ta],X) -> 
-    Bool2 = in_list(A, X),
+    Bool2 = lists:member(A, X),
     if
 	Bool2 -> append_no_repeats(Ta, X);
 	true -> append_no_repeats(Ta, [A|X])
@@ -91,16 +93,13 @@ stem_keepers(S, N, Stems, Leaves, MoreRoots) ->
 	    2 -> {Stems, [P|Leaves], MoreRoots}
 	end,
     stem_keepers(S, N+1, NewStems, NewLeaves, NewMoreRoots).
-in_list(X, [X|_]) -> true;
-in_list(_, []) -> false;
-in_list(X, [_|Z]) -> in_list(X, Z).
-delete_stuff(N, Keepers, ID) ->
+delete_stuff(_, Keepers, ID) ->
     S = dump:highest(ID) div dump:word(ID),
-    delete_stuff(S, N, Keepers, ID, []).
+    delete_stuff(S, 1, Keepers, ID, []).
 delete_stuff(S, N, Keepers, Id, Out) ->
-    Bool = in_list(N, Keepers),
+    Bool = lists:member(N, Keepers),
     if
-	N>=S -> Out;%we should go through the list of keepers and update any pointers that point to deleted data to instead point to 0.
+	N>S -> Out;%we should go through the list of keepers and update any pointers that point to deleted data to instead point to 0.
 	Bool ->
 	    delete_stuff(S, N+1, Keepers, Id, Out);
 	true ->
