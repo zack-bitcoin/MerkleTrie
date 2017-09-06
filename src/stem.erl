@@ -56,8 +56,13 @@ add(S, N, T, P, H) ->
 -spec new_empty(cfg:cfg()) -> stem().
 new_empty(CFG) -> #stem{hashes = empty_hashes(CFG)}.
 recover(M, T, P, H, Hashes) ->
-    S = #stem{hashes = Hashes},
+    Types = list_to_tuple(onify(tuple_to_list(Hashes))),
+    S = #stem{hashes = Hashes, types = Types},
     add(S, M, T, P, H).
+onify([]) -> [];
+onify([0|T]) -> [0|onify(T)];
+onify([_|T]) -> [1|onify(T)].
+    
 make(Types, Pointers, Hashes) ->
     #stem{types = Types,
 	  pointers = Pointers,

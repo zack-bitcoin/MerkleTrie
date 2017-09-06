@@ -5,8 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11],
-    %V = [5],
+    %V = [1,2,3,4,5,6,7,8,9,10,11],
+    V = [5],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -139,9 +139,9 @@ test(5, CFG) ->
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
-    <<L1:40>> = <<0,0,0,0,1>>,
+    <<L1:40>> = <<1,0,0,0,0>>,
     <<L2:40>> = <<0, 0,16,0,0>>,
-    <<L3:40>> = <<0, 0,1,0,2>>,
+    <<L3:40>> = <<0, 0,1,0,0>>,
     Meta = 0,
     Leaf1 = leaf:new(L1, V1, Meta, CFG),
     Leaf2 = leaf:new(L2, V2, Meta, CFG),
@@ -159,12 +159,12 @@ test(5, CFG) ->
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     %timer:sleep(500),
-    timer:sleep(7000),
+    timer:sleep(500),
     {Hash2, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
     true = verify:proof(Hash2, Leaf1, Proof, CFG),
     true = verify:proof(Hash, Leaf2, Proof2, CFG),
     {Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
-    {Hash2, Root5, Proof5} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
+    {Hash2, Root5, _} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
     {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
     {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
     %we need to be able to add proofs for things into an empty database.

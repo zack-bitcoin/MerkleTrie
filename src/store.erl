@@ -19,6 +19,7 @@ restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkl
     store_branch(Branch3, Path, 2, LPointer, LH, CFG).
 combine_branches(_, X, []) -> X;
 combine_branches([<<N:4>> | Path], [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
+    %[combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
     [combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
 combine_stems(N, A, B) ->
     T = stem:type(N, A),
@@ -29,7 +30,7 @@ combine_stems(N, A, B) ->
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
     [<<Nibble:4>> | NewPath] = Path,
-    S = stem:recover(Nibble, Type, Pointer, Hash, H),
+    S = stem:recover(Nibble+1, Type, Pointer, Hash, H),
     NewPointer = stem:put(S, CFG),
     NewHash = stem:hash(S, CFG),
     [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
