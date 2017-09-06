@@ -5,8 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,6,7,8,9,10,11],
-    V = [5],
+    V = [1,2,3,4,5,6,7,8,9,10,11],
+    %V = [5],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -168,7 +168,7 @@ test(5, CFG) ->
     {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
     {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
     %we need to be able to add proofs for things into an empty database.
-    true = verify:proof(Hash4, Leaf3, Proof5, CFG),
+    true = verify:proof(Hash2, Leaf3, Proof5, CFG),
     {Hash5, _, Proof6} = store:store(Leaf4, Root6, CFG), %overwrite the same spot.
     true = verify:proof(Hash5, Leaf4, Proof6, CFG),
     ok;

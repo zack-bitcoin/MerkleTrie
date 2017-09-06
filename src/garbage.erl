@@ -31,7 +31,6 @@ rbp3([P|PT], [T|TT], DS, PointerType) ->
     B = (lists:member(P, DS)) and (T == PointerType),
     case B of
 	true -> 
-	    io:fwrite("remove pointer \n"),
 	    [0|rbp3(PT, TT, DS, PointerType)];
 	false -> [P|rbp3(PT, TT, DS, PointerType)]
     end.
