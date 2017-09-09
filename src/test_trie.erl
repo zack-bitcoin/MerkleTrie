@@ -305,7 +305,7 @@ test(12, CFG) ->
     Hash = trie:root_hash(trie01, L2),
     {Hash, Leaf, Proof} = trie:get(ID, L2, trie01),
     {Hash, unknown, _} = trie:get(ID, Root1, trie01),
-    {Hash, Root2, Proof2} = store:restore(Leaf, Hash, Proof, Root1, CFG),
+    Root2 = trie:restore(Leaf, Hash, Proof, Root1, trie01),
     {Hash, Leaf, Proof} = trie:get(ID, Root2, trie01),
     success.
     

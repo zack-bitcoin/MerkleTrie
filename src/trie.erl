@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2, restore/5,restore/7]).
 init(CFG) ->
     1 = stem:put(stem:new_empty(CFG), CFG),
     {ok, CFG}.
@@ -18,6 +18,10 @@ handle_call({garbage_leaves, KLS}, _From, CFG) ->
     {reply, ok, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->
     NewRoot = delete:delete(Key, Root, CFG),
+    {reply, NewRoot, CFG};
+handle_call({restore, Key, Value, Meta, Hash, Proof, Root}, _From, CFG) -> 
+    Leaf = leaf:new(Key, Value, Meta, CFG),
+    {Hash, NewRoot, _} = store:restore(Leaf, Hash, Proof, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({put, Key, Value, Meta, Root}, _From, CFG) -> 
     Leaf = leaf:new(Key, Value, Meta, CFG),
@@ -60,6 +64,13 @@ root_hash(ID, RootPointer) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).
 -spec put(leaf:key(), leaf:value(), leaf:meta(), stem:stem_p(), atom()) ->
 		 stem:stem_p().
+restore(Leaf, Hash, Path, Root, ID) ->
+    restore(leaf:key(Leaf), leaf:value(Leaf), leaf:meta(Leaf),
+	    Hash, Path, Root, ID).
+restore(Key, Value, Meta, Hash, Path, Root, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {restore, Key, Value, Meta, Hash, Path, Root}).
+    
+    
 put(Key, Value, Meta, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {put, Key, Value, Meta, Root}).
 -spec get(leaf:key(), stem:stem_p(), atom()) ->
