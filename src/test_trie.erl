@@ -5,15 +5,15 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,6,7,8,9,10,11],
-    V = [5],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12],
+    %V = [12],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
     io:fwrite("test "),
     io:fwrite(integer_to_list(N)),
     io:fwrite("\n"),
-    test(N, CFG),
+    success = test(N, CFG),
     test_helper(T, CFG).
 
 test(1, CFG) ->
@@ -79,20 +79,22 @@ test(1, CFG) ->
     1 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
     true = verify:proof(PP4,Leafcc,PP5,CFG),
-    ok;
+    success;
 
 test(2, CFG) ->
     Loc = 1,
     %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
     La = <<255, 0>>,
     Leaf = leaf:new(1, La, 0, CFG),
-    store:store(Leaf, Loc, CFG);
+    store:store(Leaf, Loc, CFG),
+    success;
 
 test(3, CFG) -> 
     Loc = 1,
     Times = 1000,
     NewLoc = test3a(Times, Times, Loc),
-    test3b(Times, NewLoc, CFG);
+    test3b(Times, NewLoc, CFG),
+    success;
 
 test(4, CFG) ->
     Size = dump:word(ids:leaf(CFG)),
@@ -171,7 +173,7 @@ test(5, CFG) ->
     true = verify:proof(Hash2, Leaf3, Proof5, CFG),
     {Hash5, _, Proof6} = store:store(Leaf4, Root6, CFG), %overwrite the same spot.
     true = verify:proof(Hash5, Leaf4, Proof6, CFG),
-    ok;
+    success;
 
 test(6, CFG) ->
     %The purpose of this test is to test merge.
@@ -236,7 +238,8 @@ test(7, CFG) ->
     true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
     {_, Root2, _} = store:store(Leaf2, Root1, CFG),
     {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
-    true = verify:proof(Hash0, Leaf2, B0, CFG);
+    true = verify:proof(Hash0, Leaf2, B0, CFG),
+    success;
     
 test(8, CFG) ->    
     V1 = <<1,1>>,
@@ -269,7 +272,8 @@ test(9, CFG) ->
     success;
     
 test(10, _CFG) ->
-    trie:get_all(1, trie01);
+    trie:get_all(1, trie01),
+    success;
 test(11, CFG) ->    
     Meta = 0,
     V1 = <<2,3>>,
@@ -290,7 +294,21 @@ test(11, CFG) ->
     %io:fwrite({proofs, Proof2, Proof3}),
     true = verify:proof(RootHash, leaf:new(Key3, empty, 0, CFG), Proof3, CFG),
     true = verify:proof(RootHash, leaf:new(Key4, empty, 0, CFG), Proof4, CFG),
+    success;
+test(12, CFG) ->    
+    %Times = 257,
+    Times = 25,
+    ID = 1,
+    L2 = test3a(Times, Times, 1),
+    Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
+    Hash = trie:root_hash(trie01, Root1),
+    Hash = trie:root_hash(trie01, L2),
+    {Hash, Leaf, Proof} = trie:get(ID, L2, trie01),
+    {Hash, unknown, _} = trie:get(ID, Root1, trie01),
+    {Hash, Root2, Proof2} = store:restore(Leaf, Hash, Proof, Root1, CFG),
+    {Hash, Leaf, Proof} = trie:get(ID, Root2, trie01),
     success.
+    
     
     
 
@@ -305,6 +323,7 @@ test3a(N, Times, Loc) -> %load up the trie
     Meta = 0,
     NewLoc = trie:put(Times + 1 - N, <<N:16>>, Meta, Loc, ?ID),
     test3a(N-1, Times, NewLoc).
+    
 test3b(0, L, _CFG) -> L;
 test3b(N, Loc, CFG) ->  %check that everything is in the trie
     if

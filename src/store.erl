@@ -13,11 +13,22 @@ restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkl
     LPointer = leaf:put(Leaf, CFG),
     LH = leaf:hash(Leaf, CFG),
     Path = leaf:path(Leaf, CFG),
-    Branch = proof2branch(Proof, 2, LPointer, LH, Path, CFG),
+    %io:fwrite({Path, Proof, lists:reverse(first_n(length(Proof), Path))}),
+    Branch = proof2branch(Proof, 2, LPointer, LH, 
+			  lists:reverse(first_n(length(Proof), Path)), 
+			  CFG),
     Branch2 = get_branch(Path, 0, Root, [], CFG),
+    %io:fwrite({Path, Proof, Branch}),
     Branch3 = combine_branches(Path, Branch, Branch2),
     store_branch(Branch3, Path, 2, LPointer, LH, CFG).
+first_n(N, [H|T]) when N > 0 ->
+    [H|first_n(N-1, T)];
+first_n(_, _) -> [].
 combine_branches(_, X, []) -> X;
+%combine_branches(_, [], []) -> [];
+combine_branches([<<N:4>> | Path], A, B) when length(A) > length(B) ->
+%combine_branches(Path, A, B) when length(A) > length(B) ->
+    [hd(A)|combine_branches(Path, tl(A), B)];
 combine_branches([<<N:4>> | Path], [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
     %[combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
     [combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
@@ -30,7 +41,18 @@ combine_stems(N, A, B) ->
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
     [<<Nibble:4>> | NewPath] = Path,
-    S = stem:recover(Nibble+1, Type, Pointer, Hash, H),
+    %S = stem:recover(Nibble, Type, Pointer, Hash, H),
+    %io:fwrite({Hash, element(Nibble+2, H), H}),
+    %io:fwrite("hash match\n"),
+    case element(Nibble+1, H) of
+	Hash -> ok;
+	X -> 
+	    io:fwrite({X, Hash, H})
+    end,
+    %Hash = element(Nibble+1, H),
+    S = stem:recover(Nibble, Type, Pointer, Hash, H),
+    %io:fwrite("proof 2 branch, new stem is "),
+    %io:fwrite({S}),
     NewPointer = stem:put(S, CFG),
     NewHash = stem:hash(S, CFG),
     [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].

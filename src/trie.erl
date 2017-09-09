@@ -28,6 +28,7 @@ handle_call({get, Key, RootPointer}, _From, CFG) ->
     {RootHash, L, Proof} = get:get(P, RootPointer, CFG),
     L2 = if
 	     L == empty -> empty;
+	     L == unknown -> unknown;
 	     true ->
 		 Key2 = leaf:key(L),
 		 if
