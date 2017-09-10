@@ -298,15 +298,37 @@ test(11, CFG) ->
 test(12, CFG) ->    
     %Times = 257,
     Times = 25,
-    ID = 1,
-    L2 = test3a(Times, Times, 1),
+    %Times = 5,
+    ID = 2,
+    Root0 = 1,
+    L2 = test3a(Times, Times, Root0),
     Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
     Hash = trie:root_hash(trie01, Root1),
     Hash = trie:root_hash(trie01, L2),
+
+    %Restore data to trie.
     {Hash, Leaf, Proof} = trie:get(ID, L2, trie01),
     {Hash, unknown, _} = trie:get(ID, Root1, trie01),
     Root2 = trie:restore(Leaf, Hash, Proof, Root1, trie01),
     {Hash, Leaf, Proof} = trie:get(ID, Root2, trie01),
+
+    %Restore our knowledge of the lack of data that ends with a leaf.
+    {Hash, empty, Proof2} = trie:get(Times+1, L2, trie01),
+    EmptyLeaf = leaf:new(Times, empty, 0, CFG),
+    true = verify:proof(Hash, EmptyLeaf, Proof2, CFG),
+    {Hash, unknown, _} = trie:get(Times+1, Root2, trie01),
+    Root3 = trie:restore(EmptyLeaf, Hash, Proof2, Root2, trie01),
+    {Hash, empty, _} = trie:get(Times+1, Root3, trie01),
+
+    %Restore our knowledge of the lack of data that ends with a stem.
+    Root4 = test3a(2, 2, Root0),
+    Root5 = trie:new_trie(trie01, stem:get(Root4, CFG)),
+    {Hash4, empty, Proof4} = trie:get(17, Root4, trie01),
+    EmptyLeaf2 = leaf:new(17, empty, 0, CFG),
+    true = verify:proof(Hash4, EmptyLeaf2, Proof4, CFG),
+    {Hash4, unknown, _} = trie:get(17, Root5, trie01),
+    Root6 = trie:restore(EmptyLeaf2, Hash4, Proof4, Root5, trie01),
+    {Hash4, empty, _} = trie:get(17, Root6, trie01),
     success.
     
     

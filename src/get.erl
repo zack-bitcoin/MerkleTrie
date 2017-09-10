@@ -30,11 +30,13 @@ get2([<<N:4>> | Path], Stem, Proof, CFG) ->
 	    Leaf2 = leaf:get(PN, CFG),
 	    LPath = leaf:path(Leaf2, CFG),
 	    B = same_end(LPath, Path, CFG),
-	    LV = leaf:value(Leaf2),
+	    LV = leaf:key(Leaf2),
 	    if
 		B -> {Leaf2, Proof};
-		LV == empty -> {empty, Proof};
-		true -> {empty, [leaf:serialize(Leaf2, CFG)|Proof]}
+		LV == 0 -> 
+		    {empty, Proof};
+		true -> 
+		    {empty, [leaf:serialize(Leaf2, CFG)|Proof]}
 	    end
     end.
 same_end(LPath, Path, _CFG) ->
