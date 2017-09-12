@@ -29,12 +29,16 @@ restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkl
 		 leaf:hash(Leaf, CFG),
 		 leaf:path(Leaf, CFG)}
 	end,
-    Branch = proof2branch(Proof, 2, LPointer, LH, 
+    Type = case B1 of
+	       true -> 0;
+	       false -> 2
+	   end,
+    Branch = proof2branch(Proof, Type, LPointer, LH, 
 			  lists:reverse(first_n(length(Proof), Path)), 
 			  CFG),
     Branch2 = get_branch(Path, 0, Root, [], CFG),
     Branch3 = combine_branches(Path, Branch, Branch2),
-    store_branch(Branch3, Path, 2, LPointer, LH, CFG).
+    store_branch(Branch3, Path, Type, LPointer, LH, CFG).
 first_n(N, [H|T]) when N > 0 ->
     [H|first_n(N-1, T)];
 first_n(_, _) -> [].
