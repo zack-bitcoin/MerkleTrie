@@ -34,52 +34,17 @@ restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkl
 			  ReversePath,
 			  CFG),%branch only proves one thing. We want to combine.
     Branch2 = get_branch(Path, 0, Root, [], CFG),%branch2 proves everything else.
-    %Branch3 = combine_branches(Path, Branch, Branch2),
-    Branch3 = combine_branches2(Branch, Branch2),
-    Key = leaf:key(Leaf),
-    io:fwrite("key is "),
-    io:fwrite(integer_to_list(Key)),
-    io:fwrite("\n"),
-    if
-         Key == 3 ->
-	%true ->
-	    %io:fwrite("store integer "),
-    %io:fwrite(integer_to_list(element(1, element(3, hd(Branch2))))),
-	    %io:fwrite({Branch3, Branch2, Branch}),
-	    %io:fwrite("\n"),
-	    ok;
-	true -> ok
-    end,
-    %store_branch(Branch3, Path, Type, LPointer, LH, CFG).
+    Branch3 = combine_branches(Branch, Branch2),
+    %Key = leaf:key(Leaf),
     store_branch(Branch3, Path, Type, LPointer, LH, CFG).
 first_n(N, [H|T]) when N > 0 ->
     [H|first_n(N-1, T)];
 first_n(_, _) -> [].
-%combine_branches(_, X, []) -> X;
-combine_branches2([], []) -> [];
-combine_branches2(A, B)  when length(A) > length(B) ->
-    io:fwrite("combine different lengths\n"),
-    [hd(A)|combine_branches2(tl(A), B)];
-combine_branches2(_, B) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
+combine_branches([], []) -> [];
+combine_branches(A, B)  when length(A) > length(B) ->
+    [hd(A)|combine_branches(tl(A), B)];
+combine_branches(_, B) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
     B.
-    
-combine_branches(_, [], []) -> [];
-combine_branches([<<_:4>> | Path], A, B) when length(A) > length(B) ->
-    io:fwrite("combine different lengths\n"),
-    [hd(A)|combine_branches(Path, tl(A), B)];
-combine_branches([<<N:4>> | Path], [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
-    io:fwrite("combine same length\n"),
-    %[combine_stems(N+1, Sb, Sa) | combine_branches(Path, A, B)].
-    [combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
-combine_stems(N, A, B) ->
-    T = stem:type(N, A),
-    P = stem:pointer(N, A),
-    io:fwrite("combine stems pointer is "),
-    io:fwrite(integer_to_list(P)),
-    io:fwrite("\n"),
-    H = element(N, stem:hashes(A)),
-    stem:add(B, N, T, P, H).
-    
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], _, _, Hash, _, CFG) when is_binary(H) -> 
     L = leaf:deserialize(H, CFG),
