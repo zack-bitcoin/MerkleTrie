@@ -3,7 +3,7 @@
 -module(stem).
 -export([test/0,get/2,put/2,type/2,hash/2,pointers/1,
 	 types/1,hashes/1,pointer/2,new/5,add/5,
-	 new_empty/1,recover/5, empty_hashes/1, 
+	 new_empty/1,recover/6, empty_hashes/1, 
 	 update_pointers/2, empty_tuple/0,
 	 make/3, update/3,
 	 empty_trie/2]).
@@ -55,13 +55,21 @@ add(S, N, T, P, H) ->
     #stem{types = T2, pointers = P2, hashes = H2}.
 -spec new_empty(cfg:cfg()) -> stem().
 new_empty(CFG) -> #stem{hashes = empty_hashes(CFG)}.
-recover(M, T, P, H, Hashes) ->
-    Types = list_to_tuple(onify(tuple_to_list(Hashes))),
+recover(M, T, P, H, Hashes, CFG) ->
+    Types = list_to_tuple(onify(tuple_to_list(Hashes), CFG)),
     S = #stem{hashes = Hashes, types = Types},
     add(S, M, T, P, H).
-onify([]) -> [];
-onify([0|T]) -> [0|onify(T)];
-onify([_|T]) -> [1|onify(T)].
+onify([], _) -> [];
+onify([H|T], CFG) ->
+    HS = cfg:hash_size(CFG)*8,
+    <<X:HS>> = H,
+    case X of
+	0 -> [0|onify(T, CFG)];
+	_ -> [1|onify(T, CFG)]
+    end.
+	    
+%onify([<<0:_>>|T]) -> [0|onify(T)];
+%onify([_|T]) -> [1|onify(T)].
     
 make(Types, Pointers, Hashes) ->
     #stem{types = Types,
@@ -159,11 +167,13 @@ empty_trie(Root, CFG) ->
 test() ->
     P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
     T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    CFG = cfg:new(1, 9, 2, trie),
+    %CFG = cfg:new(1, 9, 2, trie),
+    CFG = trie:cfg(trie01),
     H = empty_hashes(CFG),
     S = #stem{types = T, pointers = P, hashes = H},
     S2 = serialize(S, CFG),
     S = deserialize(S2, CFG),
-    hash(S, CFG),
+    Hash = hash(S, CFG),
+    S3 = add(S, 3, 1, 5, Hash),
     success.
     

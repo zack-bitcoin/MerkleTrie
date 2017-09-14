@@ -6,53 +6,79 @@
 -type nonempty_branch() :: [stem:stem(), ...].
 
 restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
-
     %We take the existing branch, and the proof2branch, and mix them together. We want the new branch to contain pointers to the existing data.
-
     true = verify:proof(Hash, Leaf, Proof, CFG),
     HSE = cfg:hash_size(CFG) * 8,
     B1 = (leaf:value(Leaf) == empty),
-    B2 = (is_binary(hd(Proof))),
-    {LPointer, LH, Path} = 
+    B2 = (is_binary(hd(Proof))),%A leaf is stored with the proof.
+    {LPointer, LH, Path, Type, Proof2} = 
 	if
 	    B1 and B2 -> 
 		L2 = leaf:deserialize(hd(Proof), CFG),
 		{leaf:put(L2, CFG),
 		 leaf:hash(L2, CFG),
-		 leaf:path(L2, CFG)};
-	    B2 ->
-		throw(error);
+		 leaf:path(L2, CFG),
+		 2,
+		 tl(Proof)};
 	    B1 ->
-		{0, <<0:HSE>>, leaf:path(Leaf, CFG)};
-	    true ->
+		{0, <<0:HSE>>, leaf:path(Leaf, CFG), 0, Proof};
+	    not B2 ->
 		{leaf:put(Leaf, CFG),
 		 leaf:hash(Leaf, CFG),
-		 leaf:path(Leaf, CFG)}
+		 leaf:path(Leaf, CFG),
+		 2, 
+		 Proof}
 	end,
-    Type = case B1 of
-	       true -> 0;
-	       false -> 2
-	   end,
-    Branch = proof2branch(Proof, Type, LPointer, LH, 
-			  lists:reverse(first_n(length(Proof), Path)), 
-			  CFG),
-    Branch2 = get_branch(Path, 0, Root, [], CFG),
-    Branch3 = combine_branches(Path, Branch, Branch2),
+    ReversePath = lists:reverse(first_n(length(Proof2), Path)), 
+    Branch = proof2branch(Proof2, Type, LPointer, LH, 
+			  ReversePath,
+			  CFG),%branch only proves one thing. We want to combine.
+    Branch2 = get_branch(Path, 0, Root, [], CFG),%branch2 proves everything else.
+    %Branch3 = combine_branches(Path, Branch, Branch2),
+    Branch3 = combine_branches2(Branch, Branch2),
+    Key = leaf:key(Leaf),
+    io:fwrite("key is "),
+    io:fwrite(integer_to_list(Key)),
+    io:fwrite("\n"),
+    if
+         Key == 3 ->
+	%true ->
+	    %io:fwrite("store integer "),
+    %io:fwrite(integer_to_list(element(1, element(3, hd(Branch2))))),
+	    %io:fwrite({Branch3, Branch2, Branch}),
+	    %io:fwrite("\n"),
+	    ok;
+	true -> ok
+    end,
+    %store_branch(Branch3, Path, Type, LPointer, LH, CFG).
     store_branch(Branch3, Path, Type, LPointer, LH, CFG).
 first_n(N, [H|T]) when N > 0 ->
     [H|first_n(N-1, T)];
 first_n(_, _) -> [].
-combine_branches(_, X, []) -> X;
+%combine_branches(_, X, []) -> X;
+combine_branches2([], []) -> [];
+combine_branches2(A, B)  when length(A) > length(B) ->
+    io:fwrite("combine different lengths\n"),
+    [hd(A)|combine_branches2(tl(A), B)];
+combine_branches2(_, B) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
+    B.
+    
+combine_branches(_, [], []) -> [];
 combine_branches([<<_:4>> | Path], A, B) when length(A) > length(B) ->
+    io:fwrite("combine different lengths\n"),
     [hd(A)|combine_branches(Path, tl(A), B)];
 combine_branches([<<N:4>> | Path], [Sa|A], [Sb|B]) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
-    %[combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
+    io:fwrite("combine same length\n"),
+    %[combine_stems(N+1, Sb, Sa) | combine_branches(Path, A, B)].
     [combine_stems(N+1, Sa, Sb) | combine_branches(Path, A, B)].
 combine_stems(N, A, B) ->
     T = stem:type(N, A),
     P = stem:pointer(N, A),
+    io:fwrite("combine stems pointer is "),
+    io:fwrite(integer_to_list(P)),
+    io:fwrite("\n"),
     H = element(N, stem:hashes(A)),
-    stem:add(B, N-1, T, P, H).
+    stem:add(B, N, T, P, H).
     
 proof2branch([],_,_,_, _, _) -> [];
 proof2branch([H|T], _, _, Hash, _, CFG) when is_binary(H) -> 
@@ -62,7 +88,7 @@ proof2branch([H|T], _, _, Hash, _, CFG) when is_binary(H) ->
     proof2branch(T, 2, Pointer, Hash, Path, CFG);
 proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
     [<<Nibble:4>> | NewPath] = Path,
-    S = stem:recover(Nibble, Type, Pointer, Hash, H),
+    S = stem:recover(Nibble, Type, Pointer, Hash, H, CFG),
     NewPointer = stem:put(S, CFG),
     NewHash = stem:hash(S, CFG),
     [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
@@ -134,7 +160,7 @@ store_branch_internal([], Path, _, Pointer, _, CFG) ->
 
 store_branch_internal([B|Branch], Path, Type, Pointer, Hash, CFG) ->
     S = length(Branch),
-    <<A:4>> = lists:nth(S+1,Path),  %% TODO maybe this can be turned into hd (head)
+    <<A:4>> = lists:nth(S+1,Path),
     S1 = stem:add(B, A, Type, Pointer, Hash),
     Loc = stem:put(S1, CFG),
     SH = stem:hash(S1, CFG),

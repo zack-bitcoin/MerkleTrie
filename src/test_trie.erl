@@ -5,8 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12],
-    %V = [12],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13],
+    %V = [5, 6, 12, 13],
+    %V = [13],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -205,7 +206,7 @@ test(6, CFG) ->
     GL = [{leaf:path(Leafa, CFG), Root6}],
     {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     garbage:garbage_leaves(GL, CFG),
-    timer:sleep(7000),
+    timer:sleep(1000),
     {Hash3, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
     %{Hash3, empty, _} = get:get(leaf:path(Leafc, CFG), Root6, CFG),
     %RootStem = stem:update_pointers(stem:get(Root6, CFG),
@@ -307,9 +308,8 @@ test(12, CFG) ->
     Hash = trie:root_hash(trie01, L2),
 
     %Restore data to trie.
-    {Hash, Leaf, Proof} = trie:get(ID, L2, trie01),
     {Hash, unknown, _} = trie:get(ID, Root1, trie01),
-    Root2 = trie:restore(Leaf, Hash, Proof, Root1, trie01),
+    {Leaf, Root2} = restore(ID, L2, Root1),
     {Hash, Leaf, Proof} = trie:get(ID, Root2, trie01),
 
     %Restore our knowledge of the lack of data that ends with a leaf.
@@ -329,9 +329,36 @@ test(12, CFG) ->
     {Hash4, unknown, _} = trie:get(17, Root5, trie01),
     Root6 = trie:restore(EmptyLeaf2, Hash4, Proof4, Root5, trie01),
     {Hash4, empty, _} = trie:get(17, Root6, trie01),
+    success;
+
+test(13, CFG) ->    
+
+    %Restore our knowledge of various things, and then check that the information is remembered correctly.
+    Times = 25,
+    Root0 = 1,
+    L2 = test3a(Times, Times, Root0),
+    Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
+    [ID1, ID2, ID3] = [1, 17, 18],%adding an 18 and a 1 to this list makes it break.
+    {Leaf7, Root7} = restore(ID1, L2, Root1),
+    {Leaf8, Root8} = restore(ID2, L2, Root7),
+    {Leaf9, Root9} = restore(ID3, L2, Root8),
+
+    Hash = trie:root_hash(trie01, Root7),
+    Hash = trie:root_hash(trie01, Root8),
+    Hash = trie:root_hash(trie01, Root9),
+
+    {Hash, Leaf7, _} = trie:get(ID1, Root7, trie01),
+    {Hash, Leaf7, _} = trie:get(ID1, Root8, trie01),
+    {Hash, Leaf7, _} = trie:get(ID1, Root9, trie01),
+    {Hash, Leaf8, _} = trie:get(ID2, Root9, trie01),
+    {Hash, Leaf9, _} = trie:get(ID3, Root9, trie01),
     success.
     
     
+restore(ID, FilledTree, NewTree) ->    
+    {Hash, Leaf, Proof} = trie:get(ID, FilledTree, trie01),
+    %{Hash, unknown, _} = trie:get(ID, NewTree, trie01),
+    {Leaf, trie:restore(Leaf, Hash, Proof, NewTree, trie01)}.
     
 
 test3a(0, _, L) -> L;
