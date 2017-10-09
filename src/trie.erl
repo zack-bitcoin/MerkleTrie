@@ -83,9 +83,9 @@ delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key
 -spec garbage([stem:stem_p()], atom()) -> ok.
 garbage(Keepers, ID) -> 
     %io:fwrite("trie garbage \n"),
-    io:fwrite("garbage id is "),
-    io:fwrite(ID),
-    io:fwrite("\n"),
+    %io:fwrite("garbage id is "),
+    %io:fwrite(ID),
+    %io:fwrite("\n"),
     gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
 garbage_leaves(KLS, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
