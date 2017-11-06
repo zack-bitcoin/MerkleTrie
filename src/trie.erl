@@ -12,7 +12,7 @@ init(CFG) ->
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
-terminate(_, _) -> io:format("died!"), ok.
+terminate(_, _) -> io:format("trie died!"), ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast(_, X) -> {noreply, X}.
 handle_call({garbage, Keepers}, _From, CFG) -> 
@@ -22,34 +22,34 @@ handle_call({garbage_leaves, KLS}, _From, CFG) ->
     garbage:garbage_leaves(KLS, CFG),
     {reply, ok, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->
+    valid_key(Key),
     NewRoot = delete:delete(Key, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({restore, Key, Value, Meta, Hash, Proof, Root}, _From, CFG) -> 
+    valid_key(Key),
     Leaf = leaf:new(Key, Value, Meta, CFG),
     {Hash, NewRoot, _} = store:restore(Leaf, Hash, Proof, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({put, Key, Value, Meta, Root}, _From, CFG) -> 
+    valid_key(Key),
     Leaf = leaf:new(Key, Value, Meta, CFG),
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({get, Key, RootPointer}, _From, CFG) -> 
-    case is_integer(Key) of
-	false -> {reply, {error, invalid_key}, CFG};
-	true ->
-	    P = leaf:path_maker(Key, CFG),
-	    {RootHash, L, Proof} = get:get(P, RootPointer, CFG),
-	    L2 = if
-		     L == empty -> empty;
-		     L == unknown -> unknown;
-		     true ->
-			 Key2 = leaf:key(L),
-			 if
-			     Key == Key2 -> L;
-			     true -> empty
-			 end
-		 end,
-	    {reply, {RootHash, L2, Proof}, CFG}
-    end;
+    valid_key(Key),
+    P = leaf:path_maker(Key, CFG),
+    {RootHash, L, Proof} = get:get(P, RootPointer, CFG),
+    L2 = if
+	     L == empty -> empty;
+	     L == unknown -> unknown;
+	     true ->
+		 Key2 = leaf:key(L),
+		 if
+		     Key == Key2 -> L;
+		     true -> empty
+		 end
+	 end,
+    {reply, {RootHash, L2, Proof}, CFG};
 handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};
@@ -112,3 +112,7 @@ get_all_internal2([A|AT], [T|TT], CFG) ->
 		[leaf:get(A, CFG)]
 	end,
     B++get_all_internal2(AT, TT, CFG).
+valid_key(Key) ->
+    true = is_integer(Key),
+    true = Key > 0.
+    
