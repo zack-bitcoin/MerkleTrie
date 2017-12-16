@@ -27,7 +27,12 @@ test(1, CFG) ->
     <<Laa:40>> = list_to_bitstring(Lflip),
     Meta = 0,
     LeafAB = leaf:new(Laa, Lb, Meta, CFG), 
+    %io:fwrite("leafAB is "),
+    %io:fwrite(LeafAB),
+        %called as io:format(<0.26.0>,{leaf,36,<<"\377\377">>,0},[])
     Lc = leaf:serialize(LeafAB, CFG),
+    %io:fwrite("lc is "),
+    %io:fwrite(size(Lc)),
     Loc1 = dump:put(Lc, ids:leaf(CFG)),
     LH = leaf:hash(LeafAB, CFG),
     S1 = stem:new(Nib2, 2, Loc1, LH, CFG),
