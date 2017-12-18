@@ -87,7 +87,7 @@ hash(L, CFG) ->
     case L#leaf.value of
 	empty -> <<0:HS>>;
 	V ->
-	    P = cfg:path(CFG) * 8,
+	    P = cfg:path(CFG) * 8,%8 times bigger than necessary. :(
 	    HS2 = cfg:hash_size(CFG),
 	    hash:doit(<<(L#leaf.key):P, V/binary>>, HS2)
     end.

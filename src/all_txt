@@ -1,0 +1,1270 @@
+-module(cfg).
+-compile(export_all).
+-export_type([cfg/0,path/0,value/0,id/0,meta/0,hash_size/0]).
+-record(cfg, { path :: path()
+	     , value :: value()
+	     , id :: id()
+	     , meta :: meta()
+	     , hash_size :: hash_size()
+	     }).
+-opaque cfg() :: #cfg{}.
+-type path() :: pos_integer().
+-type value() :: non_neg_integer().
+-type id() :: atom().
+-type meta() :: non_neg_integer().
+-type hash_size() :: pos_integer().
+-spec new(path(), value(), id(), meta(), hash_size()) -> cfg().
+new(P, V, ID, M, H) -> #cfg{path = P, value = V, 
+			    id = ID, meta = M,
+			    hash_size = H }.
+-spec path(cfg()) -> path().
+path(X) -> X#cfg.path. %how many bytes to store the path (defaul is 5)
+-spec value(cfg()) -> value().
+value(X) -> X#cfg.value.%how many bytes to store the value.
+-spec meta(cfg()) -> meta().
+meta(X) -> X#cfg.meta. %how many bytes to store the meta data that isn't hashed into the merkle tree.
+leaf(X) -> path(X) + value(X) + meta(X).
+-spec id(cfg()) -> id().
+id(X) -> X#cfg.id.
+-spec hash_size(cfg()) -> hash_size().
+hash_size(X) -> X#cfg.hash_size.
+-module(delete).
+-export([delete/3]).
+
+-spec delete(leaf:key(), stem:stem_p(), cfg:cfg()) -> stem:stem_p().
+delete(ID, Root, CFG) ->
+    Path = leaf:path_maker(ID, CFG),
+    case store:get_branch(Path, 0, Root, [], CFG) of
+	{_, _, _} -> %already no leaf with the specified path
+	    Root;
+	Branch ->
+	    X = cfg:hash_size(CFG)*8,
+	    EmptyHash = <<0:X>>,
+	    {_, NewRoot, _} = store:store_branch(Branch, Path, 0, 0, EmptyHash, CFG),
+	    NewRoot
+    end.
+
+%choices on how to fix garbage_leaves
+%1 we could cycle through every stem in the trie, check every pointer, and see if it is deleted.
+%2 we could rethink how garbage and garbage_leaves work, so keepers is combined with delete_stuff. Instead of cycling through every stem, we walk down the 
+
+-module(garbage).
+-export([garbage/2, garbage_leaves/2]).
+garbage_leaves(KeeperLeaves, CFG) ->
+    {KeeperStems, KL} = keepers_backwards(KeeperLeaves, CFG),
+    %We need to update all the Keeper stems, so that the empty things aren't pointed to.
+    DeletedLeaves = delete_stuff(1, KL, ids:leaf(CFG)),
+    DeletedStems = delete_stuff(1, [1|KeeperStems], ids:stem(CFG)),%maybe delete_stuff should return the locations of all deleted stems and leaves, that way we know what to replace with 0s.
+    remove_bad_pointers(1, [1|KeeperStems], DeletedStems, CFG),%1 is for stems
+    remove_bad_pointers(2, [1|KeeperStems], DeletedLeaves, CFG),%2 is for leaves
+    ok.
+remove_bad_pointers(_, [], _, _) -> ok;
+remove_bad_pointers(PT, [K|KT], DS, CFG) ->
+    Stem = stem:get(K, CFG),
+    Pointers = stem:pointers(Stem),
+    Types = stem:types(Stem),
+    NewPointers = rbp2(PT, Pointers, Types, DS),
+    Stem2 = stem:update_pointers(Stem, NewPointers),
+    stem:update(K, Stem2, CFG),
+    remove_bad_pointers(PT, KT, DS, CFG).
+rbp2(PT, Pointers, Types, DS) ->
+    X = rbp3(tuple_to_list(Pointers),
+	      tuple_to_list(Types),
+	      DS, PT),
+    list_to_tuple(X).
+rbp3([], [], _, _) -> [];
+rbp3([P|PT], [T|TT], DS, PointerType) ->
+    B = (lists:member(P, DS)) and (T == PointerType),
+    case B of
+	true -> 
+	    [0|rbp3(PT, TT, DS, PointerType)];
+	false -> [P|rbp3(PT, TT, DS, PointerType)]
+    end.
+	    
+-spec garbage([stem:stem_p()], cfg:cfg()) -> ok.
+garbage(KeeperRoots, CFG) ->
+    {KeeperStems, KeeperLeaves} = keepers(KeeperRoots, CFG),
+    delete_stuff(1, KeeperStems, ids:stem(CFG)),
+    delete_stuff(1, KeeperLeaves, ids:leaf(CFG)),
+    ok.
+keepers_backwards(X, CFG) -> keepers_backwards(X, {[],[]}, CFG).
+keepers_backwards([], X, _) -> X;
+keepers_backwards([{Path, Root}|Leaves], {KS, KL}, CFG) -> 
+    S = stem:get(Root, CFG),
+    {Stems, Leaf} = kb2(Path, S, [Root], CFG),
+    keepers_backwards(Leaves, 
+		      {append_no_repeats(Stems, KS), 
+		       append_no_repeats([Leaf], KL)},
+		      CFG).
+kb2([<<N:4>> | Path], Stem, Keepers, CFG) ->
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
+    case NextType of
+	1 -> %another stem
+	    Next = stem:get(PN, CFG),
+	    kb2(Path, Next, append_no_repeats([PN], Keepers), CFG);
+	2 -> %leaf
+	    {Keepers, PN}
+    end.
+keepers([], _) -> {[], []};
+keepers([R|Roots], CFG) -> %returns {keeperstems, keeperleaves}
+    case stem:get(R, CFG) of
+	error -> 
+	    {A, B} = keepers(Roots, CFG),
+	    {[R|A],B};
+	S -> 
+	    {X, Y, MoreRoots} = stem_keepers(S),
+	    {A, B} = keepers(MoreRoots++Roots, CFG),
+	    {[R|append_no_repeats(X, A)],
+	     append_no_repeats(Y, B)}
+    end.
+append_no_repeats([],X) -> X;
+append_no_repeats([A|Ta],X) -> 
+    Bool2 = lists:member(A, X),
+    if
+	Bool2 -> append_no_repeats(Ta, X);
+	true -> append_no_repeats(Ta, [A|X])
+    end.
+stem_keepers(S) ->
+    stem_keepers(S, 1, [], [], []).
+stem_keepers(_, 17, Stems, Leaves, Roots) -> {Stems,Leaves, Roots};
+stem_keepers(S, N, Stems, Leaves, MoreRoots) ->
+    P = stem:pointer(N, S),
+    {NewStems, NewLeaves, NewMoreRoots} = 
+	case stem:type(N, S) of
+	    0 -> {Stems, Leaves, MoreRoots};
+	    1 -> 
+		{[P|Stems], Leaves,[P|MoreRoots]};
+	    2 -> {Stems, [P|Leaves], MoreRoots}
+	end,
+    stem_keepers(S, N+1, NewStems, NewLeaves, NewMoreRoots).
+delete_stuff(_, Keepers, ID) ->
+    S = dump:highest(ID) div dump:word(ID),
+    delete_stuff(S, 1, Keepers, ID, []).
+delete_stuff(S, N, Keepers, Id, Out) ->
+    Bool = lists:member(N, Keepers),
+    if
+	N>S -> Out;%we should go through the list of keepers and update any pointers that point to deleted data to instead point to 0.
+	Bool ->
+	    delete_stuff(S, N+1, Keepers, Id, Out);
+	true ->
+	    dump:delete(N, Id),
+	    delete_stuff(S, N+1, Keepers, Id, [N|Out])
+    end.
+-module(get).
+-export([get/3, same_end/3, test/0]).
+-export_type([proof/0]).
+
+-type proof() :: [stem:hashes(), ...]. % the last element is the 16-hashes-tuple contained in the root
+
+-spec get(leaf:path(), stem:stem_p(), cfg:cfg()) ->
+		 {RootHash::stem:hash(), Value, proof()}
+		     when Value :: empty | leaf:leaf().
+get(Path, Root, CFG) ->
+    S = stem:get(Root, CFG),
+    H = stem:hash(S, CFG),
+    case get2(Path, S, [stem:hashes(S)], CFG) of
+	{unknown, Proof} -> {H, unknown, Proof};
+	{empty, Proof} -> {H, empty, Proof};
+	{A, Proof} -> {H, A, Proof}
+    end.       
+get2([<<N:4>> | Path], Stem, Proof, CFG) ->
+    NextType = stem:type(N+1, Stem),
+    PN = stem:pointer(N+1, Stem),
+    if
+	NextType == 0 -> %empty
+	    %Next = stem:get(PN, CFG),
+	    {empty, Proof};
+	PN == 0 -> {unknown, Proof};
+	NextType == 1 -> %another stem
+	    Next = stem:get(PN, CFG),
+	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
+	NextType == 2 -> %leaf
+	    Leaf2 = leaf:get(PN, CFG),
+	    LPath = leaf:path(Leaf2, CFG),
+	    B = same_end(LPath, Path, CFG),
+	    LV = leaf:key(Leaf2),
+	    if
+		B -> {Leaf2, Proof};
+		LV == 0 -> 
+		    {empty, Proof};
+		true -> 
+		    {empty, [leaf:serialize(Leaf2, CFG)|Proof]}
+	    end
+    end.
+same_end(LPath, Path, _CFG) ->
+    S = length(Path)*4,
+    LS = (length(LPath)*4) - S,
+    Path2 = tl_times(LS div 4, LPath),
+    Path2 == Path.
+tl_times(N, L) when N < 1 -> L;
+tl_times(N, L) ->
+    tl_times(N-1, tl(L)).
+
+test() ->
+    CFG = trie:cfg(trie01),
+    A = [1,2,3,4,5],
+    B = [3,4,5] ++ A,
+    true = same_end(B, A, CFG),
+    success.
+-module(ids).
+-export([main_id/1, leaf/1, main/1, stem/1, bits/1, ram/1]).
+
+
+leaf(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_leaf").
+stem(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_stem").
+main(CFG) -> main_id(cfg:id(CFG)).
+bits(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_bits").
+main_id(ID) -> list_to_atom(atom_to_list(ID) ++ "_main").
+ram(CFG) -> list_to_atom(atom_to_list(cfg:id(CFG)) ++ "_ram").
+-module(leaf).
+-export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2,
+	is_serialized_leaf/2, test/0]).
+-export_type([leaf/0,key/0,value/0,meta/0,leaf_p/0,path/0]).
+-record(leaf, { key :: key()
+	      , value :: value()
+	      , meta :: meta() %meta is data we want to remember that doesn't get hashed into the merkle tree.
+	      }).
+-opaque leaf() :: #leaf{}.
+-type key() :: non_neg_integer().
+-type value() :: binary().
+-type meta() :: non_neg_integer().
+-opaque leaf_p() :: non_neg_integer().
+-type path() :: path(cfg:path()).
+-type path(_CfgPathSizeBytes) :: [nib(), ...]. % non-empty because configured path size positive
+-type nib() :: <<_:4>>.
+is_serialized_leaf(X, CFG) ->
+    P = cfg:path(CFG),
+    M = cfg:meta(CFG),
+    S = cfg:value(CFG),
+    size(X) == (P + M + S).
+    %is_record(X, leaf).
+serialize(X, CFG) ->
+    P = cfg:path(CFG) * 8,
+    M = cfg:meta(CFG) * 8,
+    S = cfg:value(CFG),
+    S = size(X#leaf.value),
+    %io:fwrite({CFG, X}),
+    <<(X#leaf.key):P, 
+      (X#leaf.meta):M,
+      (X#leaf.value)/binary>>.
+deserialize(A, CFG) ->
+    L = cfg:value(CFG) * 8,
+    P = cfg:path(CFG) * 8,
+    MS = cfg:meta(CFG) * 8,
+    <<Key:P, 
+      Meta:MS,
+      Value:L>> = A,
+    #leaf{key = Key, value = <<Value:L>>, meta = Meta}. 
+-spec new(key(), value(), meta(), cfg:cfg()) -> leaf().
+new(Key, Value, Meta, CFG) ->
+    P = cfg:path(CFG),
+    ok = check_key(Key, P),
+    L = cfg:value(CFG) * 8,
+    case Value of
+	empty -> ok;
+	<<_:L>> -> ok;
+	_ -> io:fwrite({value_is, size(Value), L div 8})
+    end,
+    %L = cfg:value(CFG) * 8,
+    %<<_:L>> = Value,
+    #leaf{key = Key, value = Value, meta = Meta}. 
+check_key(Key, LBytes) when is_integer(Key),
+			    Key >= 0,
+			    Key < (1 bsl (LBytes * 8)) ->
+    ok;
+check_key(Key, _) when is_integer(Key) ->
+    {error, key_out_of_range};
+check_key(_, _) ->
+    {error, key_not_integer}.
+-spec key(leaf()) -> key().
+key(L) -> L#leaf.key.
+-spec path(leaf(), cfg:cfg()) -> path().
+path(L, CFG) ->
+    K = key(L),
+    path_maker(K, CFG).
+-spec path_maker(key(), cfg:cfg()) -> path().
+path_maker(K, CFG) ->
+    T = cfg:path(CFG)*8,
+    lists:reverse([<<N:4>>||<<N:4>> <= <<K:T>>]).
+
+-spec value(leaf()) -> value().
+value(L) -> L#leaf.value.
+-spec meta(leaf()) -> meta().
+meta(X) -> X#leaf.meta.
+-spec put(leaf(), cfg:cfg()) -> leaf_p().
+put(Leaf, CFG) ->
+    dump:put(serialize(Leaf, CFG), 
+	     ids:leaf(CFG)).
+-spec get(leaf_p(), cfg:cfg()) -> leaf().
+get(Pointer, CFG) ->
+    L = dump:get(Pointer, ids:leaf(CFG)),
+    deserialize(L, CFG).
+-spec hash(leaf(), cfg:cfg()) -> stem:hash().
+hash(L, CFG) ->   
+    HS = cfg:hash_size(CFG)*8,
+    case L#leaf.value of
+	empty -> <<0:HS>>;
+	V ->
+	    P = cfg:path(CFG) * 8,%8 times bigger than necessary. :(
+	    HS2 = cfg:hash_size(CFG),
+	    hash:doit(<<(L#leaf.key):P, V/binary>>, HS2)
+    end.
+test() ->
+    CFG = trie:cfg(trie01),
+    HS = cfg:hash_size(CFG)*8,
+    X = new(1, <<0:16>>, 0, CFG),
+    SX = serialize(X, CFG),
+    X = deserialize(serialize(X, CFG), CFG),
+    true = is_serialized_leaf(SX, CFG),
+    success.
+    
+%The purpose of this file is to define stems as a data structure in ram, and give some simple functions to operate on them.
+
+-module(stem).
+-export([test/0,get/2,put/2,type/2,hash/2,pointers/1,
+	 types/1,hashes/1,pointer/2,new/5,add/5,
+	 new_empty/1,recover/6, empty_hashes/1, 
+	 update_pointers/2, empty_tuple/0,
+	 make/3, make/2, update/3, onify2/2,
+	 empty_trie/2]).
+-export_type([stem/0,types/0,empty_t/0,stem_t/0,leaf_t/0,pointers/0,empty_p/0,hashes/0,hash/0,empty_hash/0,stem_p/0,nibble/0]).
+-record(stem, { types = empty_tuple() :: types()
+	      , pointers = empty_tuple() :: pointers()
+	      , hashes :: hashes()
+	      }).
+-opaque stem() :: #stem{}.
+-type types() :: {t(),t(),t(),t(),
+		  t(),t(),t(),t(),
+		  t(),t(),t(),t(),
+		  t(),t(),t(),t()}.
+-type t() :: type().
+-type type() :: empty_t() | stem_t() | leaf_t().
+-type empty_t() :: 0.
+-type stem_t() :: 1.
+-type leaf_t() :: 2.
+-type pointers() :: {p(),p(),p(),p(),
+		     p(),p(),p(),p(),
+		     p(),p(),p(),p(),
+		     p(),p(),p(),p()}.
+-type p() :: pointer().
+-type pointer() :: empty_p() | stem_p() | leaf:leaf_p().
+-type empty_p() :: 0.
+-type hashes() :: {h(),h(),h(),h(),
+		   h(),h(),h(),h(),
+		   h(),h(),h(),h(),
+		   h(),h(),h(),h()}.
+-type h() :: hash().
+-type hash() :: hash(cfg:hash_size()).
+-type hash(_CfgHashSizeBytes) :: non_empty_binary(). % non-empty because configured hash size positive
+-type empty_hash() :: hash().
+-opaque stem_p() :: non_neg_integer().
+-type nibble() :: 0..15.
+-type non_empty_binary() :: <<_:8, _:_*8>>.
+empty_tuple() -> {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}.
+-spec add(stem(), nibble(), leaf_t(), leaf:leaf_p(), hash()) -> stem();
+	 (stem(), nibble(), stem_t(), stem_p(), hash()) -> stem();
+	 (stem(), nibble(), empty_t(), empty_p(), empty_hash()) -> stem().
+add(S, N, T, P, H) ->
+    M = N+1,
+    Ty = S#stem.types,
+    Po = S#stem.pointers,
+    Ha = S#stem.hashes,
+    T2 = setelement(M, Ty, T),
+    P2 = setelement(M, Po, P),
+    H2 = setelement(M, Ha, H),
+    #stem{types = T2, pointers = P2, hashes = H2}.
+-spec new_empty(cfg:cfg()) -> stem().
+new_empty(CFG) -> #stem{hashes = empty_hashes(CFG)}.
+recover(M, T, P, H, Hashes, CFG) ->
+    Types = onify2(Hashes, CFG),
+    %Types = list_to_tuple(onify(tuple_to_list(Hashes), CFG)),
+    S = #stem{hashes = Hashes, types = Types},
+    add(S, M, T, P, H).
+onify2(H, CFG) ->
+    list_to_tuple(onify(tuple_to_list(H), CFG)).
+onify([], _) -> [];
+onify([H|T], CFG) ->
+    HS = cfg:hash_size(CFG)*8,
+    <<X:HS>> = H,
+    case X of
+	0 -> [0|onify(T, CFG)];
+	_ -> [1|onify(T, CFG)]
+    end.
+	    
+%onify([<<0:_>>|T]) -> [0|onify(T)];
+%onify([_|T]) -> [1|onify(T)].
+make(Hashes, ID) ->
+    CFG = trie:cfg(ID),
+    Types = onify2(Hashes, CFG),
+    Pointers = empty_tuple(),
+    make(Types, Pointers, Hashes).
+make(Types, Pointers, Hashes) ->
+    #stem{types = Types,
+	  pointers = Pointers,
+	  hashes = Hashes}.
+new(M, T, P, H, CFG) ->
+    %N is the nibble being pointed to.
+    %T is the type, P is the pointer, H is the Hash
+    S = new_empty(CFG),
+    add(S, M, T, P, H).
+-spec pointers(stem()) -> pointers().
+pointers(R) -> R#stem.pointers.
+update_pointers(Stem, NP) ->
+    Stem#stem{pointers = NP}.
+-spec types(stem()) -> types().
+types(R) -> R#stem.types.
+-spec hashes(stem()) -> hashes().
+hashes(R) -> R#stem.hashes.
+-spec pointer(1..16, stem()) -> pointer().
+pointer(N, R) ->
+    T = pointers(R),
+    element(N, T).
+-spec type(1..16, stem()) -> type().
+type(N, R) ->
+    T = types(R),
+    element(N, T).
+serialize(S, CFG) ->
+    Path = cfg:path(CFG)*8,
+    P = S#stem.pointers,
+    H = S#stem.hashes,
+    T = S#stem.types,
+    X = serialize(P, H, T, Path, 1),
+    X.
+serialize(_, _, _, _, N) when N>16 -> <<>>;
+serialize(P, H, T, Path, N) -> 
+    P1 = element(N, P),
+    H1 = element(N, H),
+    T1 = element(N, T),
+    D = serialize(P, H, T, Path, N+1),
+    << T1:2, P1:Path, H1/binary, D/bitstring >>.
+deserialize(B, CFG) -> 
+    X = empty_tuple(),
+    %deserialize(1,X,X,cfg:path(CFG)*8,hash:hash_depth()*8,X, B).
+    HS = cfg:hash_size(CFG),
+    deserialize(1,X,X,cfg:path(CFG)*8,HS*8,X, B).
+deserialize(17, T,P,_,_,H, <<>>) -> 
+    #stem{types = T, pointers = P, hashes = H};
+deserialize(N, T0,P0,Path,HashDepth,H0,X) when N < 17 ->
+    <<T:2, P:Path, H:HashDepth, D/bitstring>> = X,
+    T1 = setelement(N, T0, T),
+    P1 = setelement(N, P0, P),
+    H1 = setelement(N, H0, <<H:HashDepth>>),
+    deserialize(N+1, T1, P1, Path, HashDepth,H1, D).
+empty_hashes(CFG) ->
+    HS = cfg:hash_size(CFG),
+    %X = hash:hash_depth()*8,
+    X = HS * 8,
+    {<<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>,
+     <<0:X>>,<<0:X>>,<<0:X>>,<<0:X>>}.
+
+-spec hash(Hashes, cfg:cfg()) -> hash() when
+      Hashes :: SerializedStem | hashes() | stem(),
+      SerializedStem :: binary().
+hash(S, CFG) when is_binary(S) ->
+    hash(deserialize(S, CFG), CFG);
+hash(S, CFG) when is_tuple(S) and (size(S) == 16)->    
+    hash2(1, S, <<>>, CFG);
+hash(S, CFG) ->    
+    H = S#stem.hashes,
+    hash2(1, H, <<>>, CFG).
+hash2(17, _, X, CFG) -> 
+    HS = cfg:hash_size(CFG),
+    hash:doit(X, HS);
+hash2(N, H, X, CFG) ->
+    A = element(N, H),
+    HS = cfg:hash_size(CFG),
+    HS = size(A),
+    hash2(N+1, H, <<A/binary, X/binary>>, CFG).
+-spec put(stem(), cfg:cfg()) -> stem_p().
+update(Location, Stem, CFG) ->
+    dump:update(Location, serialize(Stem, CFG), ids:stem(CFG)).
+put(Stem, CFG) ->
+    dump:put(serialize(Stem, CFG), ids:stem(CFG)).
+-spec get(stem_p(), cfg:cfg()) -> stem().
+get(Pointer, CFG) -> 
+    true = Pointer > 0,
+    S = dump:get(Pointer, ids:stem(CFG)),
+    deserialize(S, CFG).
+empty_trie(Root, CFG) ->
+    Stem = get(Root, CFG),
+    update_pointers(Stem, empty_tuple()).
+    
+test() ->
+    P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
+    T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+    %CFG = cfg:new(1, 9, 2, trie),
+    CFG = trie:cfg(trie01),
+    H = empty_hashes(CFG),
+    S = #stem{types = T, pointers = P, hashes = H},
+    S2 = serialize(S, CFG),
+    S = deserialize(S2, CFG),
+    Hash = hash(S, CFG),
+    add(S, 3, 1, 5, Hash),
+    success.
+    
+-module(store).
+-export([store/3, restore/5, get_branch/5, store_branch/6]).
+-export_type([branch/0, nonempty_branch/0]).
+
+-type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
+-type nonempty_branch() :: [stem:stem(), ...].
+
+restore(Leaf, Hash, Proof, Root, CFG) -> %this restores information to the merkle trie that had been garbage collected.
+    %We take the existing branch, and the proof2branch, and mix them together. We want the new branch to contain pointers to the existing data.
+    true = verify:proof(Hash, Leaf, Proof, CFG),
+    HSE = cfg:hash_size(CFG) * 8,
+    B1 = (leaf:value(Leaf) == empty),
+    B2 = (is_binary(hd(Proof))),%A leaf is stored with the proof.
+    {LPointer, LH, Path, Type, Proof2} = 
+	if
+	    B1 and B2 -> 
+		L2 = leaf:deserialize(hd(Proof), CFG),
+		{leaf:put(L2, CFG),
+		 leaf:hash(L2, CFG),
+		 leaf:path(L2, CFG),
+		 2,
+		 tl(Proof)};
+	    B1 ->
+		{0, <<0:HSE>>, leaf:path(Leaf, CFG), 0, Proof};
+	    not B2 ->
+		{leaf:put(Leaf, CFG),
+		 leaf:hash(Leaf, CFG),
+		 leaf:path(Leaf, CFG),
+		 2, 
+		 Proof}
+	end,
+    ReversePath = lists:reverse(first_n(length(Proof2), Path)), 
+    Branch = proof2branch(Proof2, Type, LPointer, LH, 
+			  ReversePath,
+			  CFG),%branch only proves one thing. We want to combine.
+    Branch2 = get_branch(Path, 0, Root, [], CFG),%branch2 proves everything else.
+    Branch3 = combine_branches(Branch, Branch2),
+    %Key = leaf:key(Leaf),
+    store_branch(Branch3, Path, Type, LPointer, LH, CFG).
+first_n(N, [H|T]) when N > 0 ->
+    [H|first_n(N-1, T)];
+first_n(_, _) -> [].
+combine_branches([], []) -> [];
+combine_branches(A, B)  when length(A) > length(B) ->
+    [hd(A)|combine_branches(tl(A), B)];
+combine_branches(_, B) ->%The second one has many pointers we care about. The first one has 1 leaf-pointer we care about.
+    B.
+proof2branch([],_,_,_, _, _) -> [];
+proof2branch([H|T], _, _, Hash, _, CFG) when is_binary(H) -> 
+    L = leaf:deserialize(H, CFG),
+    Path = leaf:path(L, CFG),
+    Pointer = leaf:put(L, CFG),
+    proof2branch(T, 2, Pointer, Hash, Path, CFG);
+proof2branch([H|T], Type, Pointer, Hash, Path, CFG) -> 
+    [<<Nibble:4>> | NewPath] = Path,
+    S = stem:recover(Nibble, Type, Pointer, Hash, H, CFG),
+    NewPointer = stem:put(S, CFG),
+    NewHash = stem:hash(S, CFG),
+    [S|proof2branch(T, 1, NewPointer, NewHash, NewPath, CFG)].
+    
+-spec store(leaf:leaf(), stem:stem_p(), cfg:cfg()) ->
+		   {RootHash, RootPointer, get:proof()}
+		       when RootHash :: stem:hash(),
+			    RootPointer :: stem:stem_p().
+store(Leaf, Root, CFG) ->
+    %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
+    LPointer = leaf:put(Leaf, CFG),
+    LH = leaf:hash(Leaf, CFG),
+    P = leaf:path(Leaf, CFG),
+    B = case get_branch(P, 0, Root, [], CFG) of
+	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
+	    %need to add 1 or more stems.
+		{A, N2} = path_match(P, leaf:path(Leaf2, CFG)),
+		[H|T] = empty_stems(A-length(Branch)+1, CFG),
+		LH2 = leaf:hash(Leaf2, CFG),
+		H2 = stem:add(H, N2, 2, LP2, LH2),
+		[H2|T]++Branch;
+	    Branch -> %overwrite
+		Branch
+    end,
+    store_branch(B, P, 2, LPointer, LH, CFG).
+-type path_nibble_index() :: path_nibble_index(cfg:path()).
+-type path_nibble_index(_CfgPathSizeBytes) :: non_neg_integer(). % 0..((cfg:path() * 2) - 1)
+-spec get_branch(Path::leaf:path(), StartInPath::path_nibble_index(),
+		 stem:stem_p(), branch(), cfg:cfg()) ->
+			{leaf:leaf(), leaf:leaf_p(), % leaf (and corresponding pointer) at returned branch and containing path different from the specified one
+			 Branch::nonempty_branch()} |
+			nonempty_branch(). % branch either (1) without leaf or (2) with leaf containing specified path
+get_branch(Path, N, Parent, Trail, CFG) ->
+    %gather the branch as it currently looks.
+    M = N+1,
+    <<A:4>> = lists:nth(M, Path), % TODO this could be turned into hd (head)
+    R = stem:get(Parent, CFG),
+    Pointer = stem:pointer(A+1, R),
+    RP = [R|Trail],
+    ST = stem:type(A+1, R),
+    if
+	ST == 0 -> RP;
+	Pointer == 0 -> RP;
+	ST == 1 -> get_branch(Path, M, Pointer, RP, CFG);
+	ST == 2 ->
+	    Leaf = leaf:get(Pointer, CFG),
+	    case leaf:path(Leaf, CFG) of
+		Path -> %overwrite
+		    RP;
+		_ -> %split leaf, add stem(s)
+		    {Leaf, Pointer, RP}
+	    end
+    end.
+-spec store_branch(nonempty_branch(), leaf:path(),
+		   stem:leaf_t(), leaf:leaf_p(), stem:hash(),
+		   cfg:cfg()) -> Result when
+      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()};
+		  (nonempty_branch(), leaf:path(),
+		   stem:empty_t(), stem:empty_p(), stem:hash(),
+		   cfg:cfg()) -> Result when
+      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()}.
+store_branch(Branch = [_|_], Path, Type, Pointer, Hash, CFG) when Type =:= 0;
+								  Type =:= 2 ->
+    store_branch_internal(Branch, Path, Type, Pointer, Hash, CFG).
+store_branch_internal([], Path, _, Pointer, _, CFG) ->
+    %Instead of getting the thing, we can build it up while doing store.
+    {Hash, _, Proof} = get:get(Path, Pointer, CFG),
+    {Hash, Pointer, Proof};
+
+store_branch_internal([B|Branch], Path, Type, Pointer, Hash, CFG) ->
+    S = length(Branch),
+    <<A:4>> = lists:nth(S+1,Path),
+    S1 = stem:add(B, A, Type, Pointer, Hash),
+    Loc = stem:put(S1, CFG),
+    SH = stem:hash(S1, CFG),
+    store_branch_internal(Branch, Path, 1, Loc, SH, CFG).
+-spec path_match(Path1::leaf:path(), Path2::leaf:path()) ->
+			{ConvergenceLength::path_nibble_index(),
+			 NextNibbleInPath2::stem:nibble()}.
+path_match(P1, P2) ->
+    path_match(P1, P2, 0).
+path_match([<<A:4>> | P1], [<<B:4>> | P2], N) ->
+    if
+	A == B -> path_match(P1, P2, N+1);
+	true -> {N, B}
+    end.
+empty_stems(0, _) -> [];
+empty_stems(N, CFG) -> [stem:new_empty(CFG)|empty_stems(N-1, CFG)].
+-module(test_trie).
+-export([test/0, test/2]).
+
+-define(ID, trie01).
+
+test() ->
+    CFG = trie:cfg(?ID),
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13],
+    %V = [5, 6, 12, 13],
+    %V = [13],
+    test_helper(V, CFG).
+test_helper([], _) -> success;
+test_helper([N|T], CFG) -> 
+    io:fwrite("test "),
+    io:fwrite(integer_to_list(N)),
+    io:fwrite("\n"),
+    success = test(N, CFG),
+    test_helper(T, CFG).
+
+test(1, CFG) ->
+    leaf:new(1, empty, 0, CFG),
+    Nib1 = 4,
+    Nib2 = 2,
+    L = [<<Nib1:4>>,<<Nib2:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>],
+    Lflip = lists:reverse(L),
+    Lb = <<255,255>>,
+    <<Laa:40>> = list_to_bitstring(Lflip),
+    Meta = 0,
+    LeafAB = leaf:new(Laa, Lb, Meta, CFG), 
+    Lc = leaf:serialize(LeafAB, CFG),
+    Loc1 = dump:put(Lc, ids:leaf(CFG)),
+    LH = leaf:hash(LeafAB, CFG),
+    S1 = stem:new(Nib2, 2, Loc1, LH, CFG),
+    Loc2 = stem:put(S1, CFG),
+    SH = stem:hash(S1, CFG),
+    S = stem:new(Nib1, 1, Loc2, SH, CFG),
+    Loc3 = stem:put(S, CFG),
+    %Starts with a 2-level tree with a single leaf at the end.
+    RootHash = stem:hash(S, CFG),
+    X = {RootHash, LeafAB, [stem:hashes(S1), stem:hashes(S)]},
+    Proof = [stem:hashes(S1), stem:hashes(S)], 
+    {RootHash, LeafAB, _} = get:get(L, Loc3, CFG),%Path, Root
+    X = get:get(L, Loc3, CFG),%Path, Root
+    {_, LeafAB, Proof} = X,
+    true = verify:proof(RootHash, LeafAB, Proof, CFG),
+    %Now we add a second element.
+    Nib3 = 5,
+    Nib4 = 10,
+    L2 = [<<Nib3:4>>,<<Nib4:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>],
+    L2flip = lists:reverse(L2),
+    L2b = <<255,255>>,
+    <<Lbb:40>> = list_to_bitstring(L2flip),
+    Leafbb = leaf:new(Lbb, L2b, Meta, CFG),
+    L2c = leaf:serialize(Leafbb, CFG),
+    Loc4 = dump:put(L2c, ids:leaf(CFG)),
+    LH2 = leaf:hash(Leafbb, CFG),
+    S2 = stem:new(Nib4, 2, Loc4, LH2, CFG),
+    Loc5 = stem:put(S2, CFG),
+    SH2 = stem:hash(S2, CFG),
+    S3 = stem:add(S, Nib3, 1, Loc5, SH2),
+    Loc6 = stem:put(S3, CFG),
+    RootHash2 = stem:hash(S3, CFG),
+    Proof2 = [stem:hashes(S2), stem:hashes(S3)],
+    X2 = {RootHash2, Leafbb, Proof2},
+    X2 = get:get(L2, Loc6, CFG),
+    true = verify:proof(RootHash2, Leafbb, Proof2, CFG),
+    Nib5 = 4,
+    Nib6 = 2,
+    L3 = [<<Nib5:4>>,<<Nib6:4>>,<<0:4>>,<<1:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>,<<0:4>>],
+    L3flip = lists:reverse(L3),
+    L3b = <<255,255>>,
+    <<L3abc:40>> = list_to_bitstring(L3flip),
+    Leafcc = leaf:new(L3abc, L3b, Meta, CFG), 
+    {Root7, Loc7, _} = store:store(Leafcc, Loc6, CFG),
+    {Root7, _, _} = store:store(Leafcc, Loc6, CFG),
+    trie:garbage([Loc7], ?ID),
+    timer:sleep(100),
+    trie:cfg(?ID),
+    ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
+    1 = dump:put(ReplaceStem, ids:stem(CFG)),
+    {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
+    true = verify:proof(PP4,Leafcc,PP5,CFG),
+    success;
+
+test(2, CFG) ->
+    Loc = 1,
+    %L = <<0:4,0:4,0:4,0:4,0,0,0>>,
+    La = <<255, 0>>,
+    Leaf = leaf:new(1, La, 0, CFG),
+    store:store(Leaf, Loc, CFG),
+    success;
+
+test(3, CFG) -> 
+    Loc = 1,
+    Times = 1000,
+    NewLoc = test3a(Times, Times, Loc),
+    test3b(Times, NewLoc, CFG),
+    success;
+
+test(4, CFG) ->
+    Size = dump:word(ids:leaf(CFG)),
+    Size = cfg:leaf(CFG),
+    Data0 = <<11:(8*Size)>>,
+    Data1 = <<2:(8*Size)>>,
+    Data2 = <<3:(8*Size)>>,
+    Data3 = <<4:(8*Size)>>,
+    IDSL = ids:leaf(CFG),
+    IDSS = ids:stem(CFG),
+    A0 = dump:put(Data0, IDSL),
+    Data0 = dump:get(A0, IDSL),
+    A1 = dump:put(Data1, IDSL),
+    Data1 = dump:get(A1, IDSL),
+    dump:delete(A0, IDSL),
+    A0 = dump:put(Data1, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    A2 = dump:put(Data2, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    A3 = dump:put(Data3, IDSL),
+    Data1 = dump:get(A0, IDSL),
+    Data1 = dump:get(A1, IDSL),
+    Data2 = dump:get(A2, IDSL),
+    Data3 = dump:get(A3, IDSL),
+
+    Size2 = dump:word(IDSS),
+    Data02 = <<11:(8*Size2)>>,
+    Data12 = <<2:(8*Size2)>>,
+    Data22 = <<3:(8*Size2)>>,
+    Data32 = <<4:(8*Size2)>>,
+    A02 = dump:put(Data02, IDSS),
+    A12 = dump:put(Data12, IDSS),
+    A22 = dump:put(Data22, IDSS),
+    A32 = dump:put(Data32, IDSS),
+    Data02 = dump:get(A02, IDSS),
+    Data12 = dump:get(A12, IDSS),
+    Data22 = dump:get(A22, IDSS),
+    Data32 = dump:get(A32, IDSS),
+    dump:delete(A02, IDSS),
+    success;
+
+test(5, CFG) ->
+    Root0 = 1,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    V3 = <<1,3>>,
+    <<L1:40>> = <<1,0,0,0,0>>,
+    <<L2:40>> = <<0, 0,16,0,0>>,
+    <<L3:40>> = <<0, 0,1,0,0>>,
+    Meta = 0,
+    Leaf1 = leaf:new(L1, V1, Meta, CFG),
+    Leaf2 = leaf:new(L2, V2, Meta, CFG),
+    Leaf3 = leaf:new(L3, V3, Meta, CFG),
+    Leaf4 = leaf:new(L3, V1, Meta, CFG),
+    {_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    {Hash, Root2, Proof2} = store:store(Leaf2, Root1, CFG),
+    {Hash, Root3, Proof3} = store:store(Leaf2, Root2, CFG),
+    {Hash2, Root4, Proof4} = store:store(Leaf3, Root3, CFG),
+    {Hash2, Leaf2, Proof7} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    {Hash2, Leaf3, Proof8} = get:get(leaf:path(Leaf3, CFG), Root4, CFG),
+    Lpath1 = leaf:path(Leaf1, CFG),
+    X = [{Lpath1, Root4}],
+    garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
+    %We need a merkle proof of it's previous state in order to update.
+    %timer:sleep(500),
+    timer:sleep(500),
+    {Hash2, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
+    true = verify:proof(Hash2, Leaf1, Proof, CFG),
+    true = verify:proof(Hash, Leaf2, Proof2, CFG),
+    {Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    {Hash2, Root5, _} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
+    {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
+    {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
+    %we need to be able to add proofs for things into an empty database.
+    true = verify:proof(Hash2, Leaf3, Proof5, CFG),
+    {Hash5, _, Proof6} = store:store(Leaf4, Root6, CFG), %overwrite the same spot.
+    true = verify:proof(Hash5, Leaf4, Proof6, CFG),
+    success;
+
+test(6, CFG) ->
+    %The purpose of this test is to test merge.
+    % The full merkel trie will be too big, most people wont keep track of it all. 
+    % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
+    % We don't get a proof of the final state. We only get a proof of the initial state, and the final state. It is possible to calculate the new proof from this. The reason we don't get the new proof is because depending on which txs get accepted into the block, the root hash of the new state will be different
+    Root0 = 1,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    V3 = <<1,3>>,
+    <<L1:40>> = <<0,0,0,0,1>>,
+    <<L2:40>> = <<0,16,0,0,0>>,
+    Meta = 0,
+    Leafa = leaf:new(L1, V1, Meta, CFG),
+    {_, Root1, _} = store:store(Leafa, Root0, CFG),
+    {Hash0bb, Leafa, Proofa} = get:get(leaf:path(Leafa, CFG), Root1, CFG),
+    true = verify:proof(Hash0bb, Leafa, Proofa, CFG),
+    Leafb = leaf:new(L2, V2, Meta, CFG),
+    {_, Root2, _} = store:store(Leafb, Root1, CFG),
+    {Hash0, Leafb, Proofb} = get:get(leaf:path(Leafb, CFG), Root2, CFG),
+    true = verify:proof(Hash0, Leafb, Proofb, CFG),
+    Leafc = leaf:new(L2, V3, Meta, CFG),
+    {Hash, Root3, _} = store:store(Leafc, Root2, CFG),
+    {Hasha, _, _} = store:store(Leafc, Root1, CFG),
+    Hasha = Hash,
+    {Hash, Leafc, Proofc} = get:get(leaf:path(Leafc, CFG), Root3, CFG),
+    true = verify:proof(Hash, Leafc, Proofc, CFG),
+    {Hash, Root6, Proofc} = store:store(Leafc, Root1, CFG),
+    GL = [{leaf:path(Leafa, CFG), Root6}],
+    {_, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
+    garbage:garbage_leaves(GL, CFG),
+    timer:sleep(1000),
+    {Hash3, Leafa, _} = get:get(leaf:path(Leafa, CFG), Root6, CFG),
+    %{Hash3, empty, _} = get:get(leaf:path(Leafc, CFG), Root6, CFG),
+    %RootStem = stem:update_pointers(stem:get(Root6, CFG),
+	%			    stem:empty_tuple()),
+    %Root7 = trie:new_trie(trie01, RootStem),
+    %RootStem = stem:empty_trie(stem:get(Root6, CFG), CFG),
+    Root7 = trie:new_trie(trie01, stem:get(Root6, CFG)),
+    Hash3 = trie:root_hash(trie01, Root7),
+    {Hash3, unknown, _} = get:get(leaf:path(Leafc, CFG), Root7, CFG),
+    {Hash3, Root8, _} = store:restore(Leafc, Hash, Proofc, Root7, CFG), %it is restoring the deleted leaf to the database.
+    %{Hash, Leafa, _B2} = get:get(leaf:path(Leafa, CFG), Root5, CFG),
+    {Hash3, Leafc, _} = get:get(leaf:path(Leafc, CFG), Root8, CFG),
+    %true = verify:proof(Hash, Leafa, B2, CFG),
+
+
+% the current implementation is very innefficient. It stores the entire proof onto the hard drive
+    success;
+
+test(7, CFG) ->
+    Root0 = 1,
+    V1 = <<1,1>>,
+    V2 = <<1,2>>,
+    <<L1:40>> = <<0,0,0,0,2>>,
+    <<L2:40>> = <<0,16,0,0,0>>,
+    Meta = 0,
+    Leaf1 = leaf:new(L1, V1, Meta, CFG),
+    Leaf2 = leaf:new(L2, V2, Meta, CFG),
+    {_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    {Hash0bb, Leaf1, B0bb} = get:get(leaf:path(Leaf1, CFG), Root1, CFG),
+    true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
+    {_, Root2, _} = store:store(Leaf2, Root1, CFG),
+    {Hash0, Leaf2, B0} = get:get(leaf:path(Leaf2, CFG), Root2, CFG),
+    true = verify:proof(Hash0, Leaf2, B0, CFG),
+    success;
+    
+test(8, CFG) ->    
+    V1 = <<1,1>>,
+    Root = 1,
+    Key = 1,
+    Meta = 0, 
+    Root2 = trie:put(Key, V1, Meta, Root, trie01),
+    {RootHash, empty, Proof} = trie:get(2, Root2, trie01),
+    {RootHash, empty, _} = trie:get(3, Root2, trie01),
+    {_, empty, _} = trie:get(4, Root2, trie01),
+    {_, Leaf, _} = trie:get(Key, Root2, trie01),
+    V1 = leaf:value(Leaf),
+    true = verify:proof(RootHash, leaf:new(2, empty, 0, CFG), 
+			Proof, CFG),
+    success;
+    
+test(9, CFG) ->
+    Root0 = 1,
+    S = stem:get(Root0, CFG),
+    V1 = <<2,3>>,
+    Key = 5,
+    RH = trie:root_hash(trie01, Root0),
+    Meta = 0, 
+    Root2 = trie:put(Key, V1, Meta, Root0, trie01),
+    {_, Leaf, _Proof1} = trie:get(Key, Root2, trie01),
+    V1 = leaf:value(Leaf),
+    Root3 = trie:delete(Key, Root2, trie01),
+    {RH, empty, _Proof} = trie:get(Key, Root3, trie01),
+    S = stem:get(Root0, CFG),
+    success;
+    
+test(10, _CFG) ->
+    trie:get_all(1, trie01),
+    success;
+test(11, CFG) ->    
+    Meta = 0,
+    V1 = <<2,3>>,
+    Key1 = 1,
+    Key2 = 2,
+    Key3 = 257,
+    Key4 = 513,
+    Root0 = 1,
+    Root = trie:put(Key1, V1, Meta, Root0, trie01),
+    %Root = trie:put(Key3, V1, Meta, Root01, trie01),
+    {RootHash, Leaf1, Proof1} = trie:get(Key1, Root, trie01),
+    {RootHash, empty, Proof2} = trie:get(Key2, Root, trie01),
+    {RootHash, empty, Proof3} = trie:get(Key3, Root, trie01),
+    {RootHash, empty, Proof4} = trie:get(Key4, Root, trie01),
+    true = verify:proof(RootHash, Leaf1, Proof1, CFG),
+    true = verify:proof(RootHash, leaf:new(Key1, V1, 0, CFG), Proof1, CFG),
+    true = verify:proof(RootHash, leaf:new(Key2, empty, 0, CFG), Proof2, CFG),
+    %io:fwrite({proofs, Proof2, Proof3}),
+    true = verify:proof(RootHash, leaf:new(Key3, empty, 0, CFG), Proof3, CFG),
+    true = verify:proof(RootHash, leaf:new(Key4, empty, 0, CFG), Proof4, CFG),
+    success;
+test(12, CFG) ->    
+    %Times = 257,
+    Times = 25,
+    %Times = 5,
+    ID = 2,
+    Root0 = 1,
+    L2 = test3a(Times, Times, Root0),
+    Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
+    Hash = trie:root_hash(trie01, Root1),
+    Hash = trie:root_hash(trie01, L2),
+
+    %Restore data to trie.
+    {Hash, unknown, _} = trie:get(ID, Root1, trie01),
+    {Leaf, Root2} = restore(ID, L2, Root1),
+    {Hash, Leaf, Proof} = trie:get(ID, Root2, trie01),
+
+    %Restore our knowledge of the lack of data that ends with a leaf.
+    {Hash, empty, Proof2} = trie:get(Times+1, L2, trie01),
+    EmptyLeaf = leaf:new(Times, empty, 0, CFG),
+    true = verify:proof(Hash, EmptyLeaf, Proof2, CFG),
+    {Hash, unknown, _} = trie:get(Times+1, Root2, trie01),
+    Root3 = trie:restore(EmptyLeaf, Hash, Proof2, Root2, trie01),
+    {Hash, empty, _} = trie:get(Times+1, Root3, trie01),
+
+    %Restore our knowledge of the lack of data that ends with a stem.
+    Root4 = test3a(2, 2, Root0),
+    Root5 = trie:new_trie(trie01, stem:get(Root4, CFG)),
+    {Hash4, empty, Proof4} = trie:get(17, Root4, trie01),
+    EmptyLeaf2 = leaf:new(17, empty, 0, CFG),
+    true = verify:proof(Hash4, EmptyLeaf2, Proof4, CFG),
+    {Hash4, unknown, _} = trie:get(17, Root5, trie01),
+    Root6 = trie:restore(EmptyLeaf2, Hash4, Proof4, Root5, trie01),
+    {Hash4, empty, _} = trie:get(17, Root6, trie01),
+    success;
+
+test(13, CFG) ->    
+
+    %Restore our knowledge of various things, and then check that the information is remembered correctly.
+    Times = 25,
+    Root0 = 1,
+    L2 = test3a(Times, Times, Root0),
+    Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
+    [ID1, ID2, ID3] = [1, 17, 18],%adding an 18 and a 1 to this list makes it break.
+    {Leaf7, Root7} = restore(ID1, L2, Root1),
+    {Leaf8, Root8} = restore(ID2, L2, Root7),
+    {Leaf9, Root9} = restore(ID3, L2, Root8),
+
+    Hash = trie:root_hash(trie01, Root7),
+    Hash = trie:root_hash(trie01, Root8),
+    Hash = trie:root_hash(trie01, Root9),
+
+    {Hash, Leaf7, _} = trie:get(ID1, Root7, trie01),
+    {Hash, Leaf7, _} = trie:get(ID1, Root8, trie01),
+    {Hash, Leaf7, _} = trie:get(ID1, Root9, trie01),
+    {Hash, Leaf8, _} = trie:get(ID2, Root9, trie01),
+    {Hash, Leaf9, _} = trie:get(ID3, Root9, trie01),
+    success.
+    
+    
+restore(ID, FilledTree, NewTree) ->    
+    {Hash, Leaf, Proof} = trie:get(ID, FilledTree, trie01),
+    %{Hash, unknown, _} = trie:get(ID, NewTree, trie01),
+    {Leaf, trie:restore(Leaf, Hash, Proof, NewTree, trie01)}.
+    
+
+test3a(0, _, L) -> L;
+test3a(N, Times, Loc) -> %load up the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    Meta = 0,
+    NewLoc = trie:put(Times + 1 - N, <<N:16>>, Meta, Loc, ?ID),
+    test3a(N-1, Times, NewLoc).
+    
+test3b(0, L, _CFG) -> L;
+test3b(N, Loc, CFG) ->  %check that everything is in the trie
+    if
+	(N rem 100) == 0 ->
+	    io:fwrite(integer_to_list(N)),
+	    io:fwrite("\n");
+	true -> ok
+    end,
+    {Hash, Value, Proof} = trie:get(N, Loc, ?ID),
+    true = verify:proof(Hash, Value, Proof, CFG), 
+    test3b(N-1, Loc, CFG).
+
+-module(trie_app).
+
+-behaviour(application).
+
+%% Application callbacks
+-export([start/2, stop/1]).
+
+%start(_StartType, _StartArgs) ->
+start(normal, []) ->
+    Size = 2,
+    %Max = 20000000000,
+    ID = trie01,
+    KeyLength = 9,
+    Amount = 1000000,
+    Mode = hd,
+    Meta = 2,
+    HashSize = 12,
+    trie_sup:start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode).
+
+stop(_State) ->
+    ok.
+{application, trie,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { trie_app, []}},
+  {env, []}
+ ]}.
+-module(trie).
+-behaviour(gen_server).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2, restore/5,restore/7]).
+init(CFG) ->
+    ID = cfg:id(CFG),
+    Top = bits:top(ID),
+    case Top of
+	1 -> stem:put(stem:new_empty(CFG), CFG);%doesn't return 1 when we restart.
+	_ -> ok
+    end,
+    {ok, CFG}.
+start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
+    gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+terminate(_, _) -> io:format("trie died!"), ok.
+handle_info(_, X) -> {noreply, X}.
+handle_cast(_, X) -> {noreply, X}.
+handle_call({garbage, Keepers}, _From, CFG) -> 
+    garbage:garbage(Keepers, CFG),
+    {reply, ok, CFG};
+handle_call({garbage_leaves, KLS}, _From, CFG) -> 
+    garbage:garbage_leaves(KLS, CFG),
+    {reply, ok, CFG};
+handle_call({delete, Key, Root}, _From, CFG) ->
+    valid_key(Key),
+    NewRoot = delete:delete(Key, Root, CFG),
+    {reply, NewRoot, CFG};
+handle_call({restore, Key, Value, Meta, Hash, Proof, Root}, _From, CFG) -> 
+    valid_key(Key),
+    Leaf = leaf:new(Key, Value, Meta, CFG),
+    {Hash, NewRoot, _} = store:restore(Leaf, Hash, Proof, Root, CFG),
+    {reply, NewRoot, CFG};
+handle_call({put, Key, Value, Meta, Root}, _From, CFG) -> 
+    valid_key(Key),
+    Leaf = leaf:new(Key, Value, Meta, CFG),
+    {_, NewRoot, _} = store:store(Leaf, Root, CFG),
+    {reply, NewRoot, CFG};
+handle_call({get, Key, RootPointer}, _From, CFG) -> 
+    valid_key(Key),
+    P = leaf:path_maker(Key, CFG),
+    {RootHash, L, Proof} = get:get(P, RootPointer, CFG),
+    L2 = if
+	     L == empty -> empty;
+	     L == unknown -> unknown;
+	     true ->
+		 Key2 = leaf:key(L),
+		 if
+		     Key == Key2 -> L;
+		     true -> empty
+		 end
+	 end,
+    {reply, {RootHash, L2, Proof}, CFG};
+handle_call({get_all, Root}, _From, CFG) ->
+    X = get_all_internal(Root, CFG),
+    {reply, X, CFG};
+handle_call({new_trie, RootStem}, _From, CFG) ->
+    %Stem = stem:empty_trie(Root, CFG),
+    Stem = stem:update_pointers(RootStem, stem:empty_tuple()),
+    X = stem:put(Stem, CFG),
+    {reply, X, CFG};
+handle_call({root_hash, RootPointer}, _From, CFG) ->
+    S = stem:get(RootPointer, CFG),
+    H = stem:hash(S, CFG),
+    {reply, H, CFG};
+handle_call(cfg, _From, CFG) ->
+    {reply, CFG, CFG}.
+cfg(ID) when is_atom(ID) ->
+    gen_server:call({global, ids:main_id(ID)}, cfg).
+new_trie(ID, RootStem) when is_atom(ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {new_trie, RootStem}).
+-spec root_hash(atom(), stem:stem_p()) -> stem:hash().
+root_hash(ID, RootPointer) when is_atom(ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).
+-spec put(leaf:key(), leaf:value(), leaf:meta(), stem:stem_p(), atom()) ->
+		 stem:stem_p().
+restore(Leaf, Hash, Path, Root, ID) ->
+    restore(leaf:key(Leaf), leaf:value(Leaf), leaf:meta(Leaf),
+	    Hash, Path, Root, ID).
+restore(Key, Value, Meta, Hash, Path, Root, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {restore, Key, Value, Meta, Hash, Path, Root}).
+    
+    
+put(Key, Value, Meta, Root, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {put, Key, Value, Meta, Root}).
+-spec get(leaf:key(), stem:stem_p(), atom()) ->
+		 {stem:hash(), empty | leaf:leaf(), get:proof()}.
+get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root}).
+-spec get_all(stem:stem_p(), atom()) -> [leaf:leaf()].
+get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root}).
+-spec delete(leaf:key(), stem:stem_p(), atom()) -> stem:stem_p().
+delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
+-spec garbage([stem:stem_p()], atom()) -> ok.
+garbage(Keepers, ID) -> 
+    gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
+garbage_leaves(KLS, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
+
+
+get_all_internal(Root, CFG) ->
+    S = stem:get(Root, CFG),
+    P = tuple_to_list(stem:pointers(S)),
+    T = tuple_to_list(stem:types(S)),
+    get_all_internal2(P, T, CFG).
+get_all_internal2([], [], _) -> [];
+get_all_internal2([A|AT], [T|TT], CFG) -> 
+    B = case T of
+	    0 -> %empty
+		[];
+	    1 -> %another stem
+		get_all_internal(A, CFG);
+	    2 -> %a leaf.
+		[leaf:get(A, CFG)]
+	end,
+    B++get_all_internal2(AT, TT, CFG).
+valid_key(Key) ->
+    true = is_integer(Key),
+    true = Key > 0.
+    
+-module(trie_sup).
+-behaviour(supervisor).
+-export([start_link/7,init/1,stop/0]).
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode) -> 
+    %keylength is the number of bytes to encode the path that you follow on the trie.
+    CFG = cfg:new(KeyLength, Size, ID, Meta, HashSize),
+    supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode]).
+stop() -> halt().
+init([CFG, Amount, Mode]) ->
+    %Size is the size of the data we store in the trie.
+    KeyLength = cfg:path(CFG),
+    HashSize = cfg:hash_size(CFG),
+    Size = cfg:value(CFG)+cfg:meta(CFG),
+    ID = cfg:id(CFG),
+    IDS = atom_to_list(ID),
+    A2 = list_to_atom(IDS++"_bits"),
+    A3 = ids:leaf(CFG),
+    A4 = ids:stem(CFG),
+    A5 = ids:main(CFG),
+    L2 = "data/" ++ IDS ++ "_trie_bits.db",
+    Children = [{A3, {dump_sup, start_link, [A3, KeyLength+Size, Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		%{A4, {dump_sup, start_link, [A4, 196+(16*KeyLength), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		{A4, {dump_sup, start_link, [A4, 4+(16*(HashSize + KeyLength)), Amount, Mode]}, permanent, 5000, supervisor, [dump_sup]},
+		%{A1, {file_manager, start_link, [L1, A1, Amount div 8, ram]}, permanent, 5000, worker, [file_manager]},
+		{A2, {bits, start_link, [A2, L2, Amount]}, permanent, 5000, worker, [bits]},
+		{A5, {trie, start_link, [CFG]}, permanent, 5000, worker, [trie]}
+	       ],
+    {ok, { {one_for_one, 5, 10}, Children} }.
+-module(verify).
+-export([proof/4]).
+
+-spec proof(stem:hash(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
+proof(RootHash, L, Proof, CFG) ->
+    [H|F] = lists:reverse(Proof),
+    %[H|F] = Proof,
+    SH = stem:hash(H, CFG),
+    if
+	SH == RootHash ->
+	    proof_internal(leaf:path(L, CFG), L, [H|F], CFG);
+	true -> 
+	    io:fwrite("false 1\n"),
+	    false
+    end.
+
+-spec proof_internal(leaf:path(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
+proof_internal([<<N:4>> | M], Leaf, P, CFG) when length(P) == 1->
+    P1 = hd(P),
+    Hash = element(N+1, P1),
+    V = leaf:value(Leaf),
+    LH = leaf:hash(Leaf, CFG),
+    Hash == LH;
+proof_internal([<<N:4>>| Path ], Leaf, [P1, P2 | Proof], CFG) ->
+    %if leaf is empty, and P2 is a leaf, then we do a different test.
+    %pass if hash(leaf) is in P1, and N does _not_ point to leaf P2.
+    LB = leaf:is_serialized_leaf(P2, CFG),
+    LV = leaf:value(Leaf),
+    if
+	(LV == empty) and LB ->
+	    Leaf2 = leaf:deserialize(P2, CFG),
+	    LH = leaf:hash(Leaf2, CFG),
+	    is_in(LH, tuple_to_list(P1)) 
+		and not(get:same_end(leaf:path(Leaf2, CFG), 
+				     [<<N:4>>|Path], 
+				     CFG));
+	true ->
+	    Hash = element(N+1, P1),
+	    case stem:hash(P2, CFG) of
+		Hash -> proof_internal(Path, Leaf, [P2 | Proof], CFG);
+		X ->
+		    io:fwrite("false 3\n"),
+		    io:fwrite({X, Hash, [P1, P2|Proof]}),
+		    false
+	    end
+    end;
+proof_internal(_, _, _, _) ->
+    io:fwrite("false 2\n"),
+    false.
+is_in(X, []) -> false;
+is_in(X, [X|_]) -> true;
+is_in(X, [A|T]) -> is_in(X, T).
