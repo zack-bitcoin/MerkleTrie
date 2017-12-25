@@ -71,7 +71,7 @@ store(Leaf, Root, CFG) ->
 	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
 	    %need to add 1 or more stems.
 		{A, N2} = path_match(P, leaf:path(Leaf2, CFG)),
-		[H|T] = empty_stems(A-length(Branch)+1, CFG),
+		[H|T] = empty_stems(max(1, A-length(Branch)+1), CFG),
 		LH2 = leaf:hash(Leaf2, CFG),
 		H2 = stem:add(H, N2, 2, LP2, LH2),
 		[H2|T]++Branch;

@@ -40,7 +40,7 @@ proof_internal([<<N:4>>| Path ], Leaf, [P1, P2 | Proof], CFG) ->
 		Hash -> proof_internal(Path, Leaf, [P2 | Proof], CFG);
 		X ->
 		    io:fwrite("false 3\n"),
-		    io:fwrite({X, Hash, [P1, P2|Proof]}),
+		    %io:fwrite({X, Hash, [P1, P2|Proof]}),
 		    false
 	    end
     end;
