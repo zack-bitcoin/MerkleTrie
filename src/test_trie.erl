@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12,13],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
     %V = [5, 6, 12, 13],
-    %V = [13],
+    %V = [14],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -357,7 +357,34 @@ test(13, CFG) ->
     {Hash, Leaf7, _} = trie:get(ID1, Root9, trie01),
     {Hash, Leaf8, _} = trie:get(ID2, Root9, trie01),
     {Hash, Leaf9, _} = trie:get(ID3, Root9, trie01),
+    success;
+test(14, CFG) ->
+    Loc = 1,
+    La = <<255, 0>>,
+    Leaves = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, La, 0, CFG),
+	      leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    %Leaves = [Leaf, Leaf3],
+    io:fwrite(packer:pack(store:batch(Leaves, Loc, CFG))),
+%root hash <<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
+    success;
+test(15, CFG) ->
+    Loc = 1,
+    La = <<255, 0>>,
+    Leaf = leaf:new(1, La, 0, CFG),
+    %Leaf2 = leaf:new(33, La, 0, CFG),
+    Leaf3 = leaf:new(17, La, 0, CFG),
+    %Leaves = [Leaf, Leaf2, Leaf3],
+    Leaves = [Leaf, Leaf3],
+    Loc2 = trie:put(1, La, 0, Loc, trie01),
+    Loc3 = trie:put(17, La, 0, Loc2, trie01),
+    io:fwrite("loc 3 is "),
+    io:fwrite(integer_to_list(Loc3)),
+    io:fwrite("\n"),
+%root hash matches test 14. {<<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
     success.
+    
     
     
 restore(ID, FilledTree, NewTree) ->    

@@ -1,5 +1,5 @@
 -module(store).
--export([store/3, restore/5, get_branch/5, store_branch/6]).
+-export([store/3, restore/5, get_branch/5, store_branch/6, batch/3]).
 -export_type([branch/0, nonempty_branch/0]).
 
 -type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
@@ -62,6 +62,129 @@ proof2branch([H|T], Type, Pointer, Hash, Path, CFG) ->
 		   {RootHash, RootPointer, get:proof()}
 		       when RootHash :: stem:hash(),
 			    RootPointer :: stem:stem_p().
+max_list([X]) -> X;
+max_list([A|[B|T]]) ->
+    max_list([max(A, B)|T]).
+batch(Leaves, Root, CFG) ->
+    %first we should sort the leaves by path. This way if any of the proofs can be combines, they will be adjacent in the list. So we can combine all the proofs by comparing pairs of adjacent proofs.
+    Leaves2 = sort_by_path(Leaves, CFG),
+    BranchData0 = store_batch_helper(Leaves2, CFG, [], Root),
+    BranchData = extra_stem(BranchData0, CFG),
+    %leaf-pointer, leaf-hash, leaf-path, branch, type
+    BStart = max_list(
+	       lists:map(
+		 fun(Branch) ->
+			 {_, _, _, B, _} = Branch,
+			 length(B)
+		 end, BranchData)),
+    batch2(BStart, BranchData, CFG).
+extra_stem([X], _) -> [X];
+extra_stem([A|[B|T]], CFG) ->
+    {Pa,Ha,Aa,Ra,Tya} = A,
+    {Pb,Hb,Ab,Rb,Tyb} = B,
+    LRA = length(Ra),
+    LRB = length(Rb),
+    S = min(LRA, LRB),
+    {Pta, _} = lists:split(S, Aa),
+    {Ptb, _} = lists:split(S, Ab),
+    Bool = Pta == Ptb,
+    if
+	Bool -> %add extra stem to the one(s) that have only S stems. recurse to check if they still match.
+	    Ra2 = if
+		      LRA == S -> empty_stems(1, CFG) ++ Ra;%add extra stem
+		      true -> Ra
+		  end,
+	    Rb2 = if
+		      LRB == S -> empty_stems(1, CFG) ++ Rb;%add extra stem
+		      true -> Rb
+		  end,
+	    A2 = {Pa,Ha,Aa,Ra2,Tya},
+	    B2 = {Pb,Hb,Ab,Rb2,Tyb},
+	    extra_stem([A2|[B2|T]], CFG);
+	true -> [A|extra_stem([B|T], CFG)]
+    end.
+    %{pointer, hash, path, branch, type}
+batch2(1, Branches, CFG) ->
+    {_, Hash, _, [Stem], _} = hd(Branches),
+    Stem2 = batch3(Stem, 1, Branches),
+    Loc = stem:put(Stem2, CFG),
+    {Hash, Loc};
+batch2(N, Branches, CFG) ->
+    %If the first N-1 nibbles of the path are the same, then they should be combined using batch3.
+    NewBranches = branch2helper(N, Branches, CFG),
+    %Store the nth thing in each branch onto the blockchain, update the pointer and hash etc
+    batch2(N-1, NewBranches, CFG).
+branch2helper(_, [], _) -> [];
+branch2helper(N, Branches, CFG) ->
+    {_, _, Path, [Stem|ST], _} = hd(Branches),
+    if 
+	length([Stem|ST]) == N ->
+	    {M, _} = lists:split(N-1, Path),
+	    {Combine, Rest} = batch4(Branches, M, N, []),
+	    Stem2 = batch3(Stem, N, Combine),
+	    Loc = stem:put(Stem2, CFG),
+	    Hash = stem:hash(Stem2, CFG),
+	    [{Loc, Hash, Path, ST, 1}|branch2helper(N, Rest, CFG)];
+	length([Stem|ST]) < N ->
+	    [hd(Branches)|branch2helper(N, tl(Branches), CFG)]
+    end.
+batch4([], _, _, Out) -> {lists:reverse(Out), []};
+batch4([B|Branches], M, N, Out) ->
+    {_, _, Path, _, _} = B,
+    {M2, _} = lists:split(N-1, Path),
+    case M2 of
+	M -> batch4(Branches, M, N, [B|Out]);
+	_ -> {lists:reverse(Out), [B|Branches]}
+    end.
+batch3(Stem, _, []) -> Stem;
+batch3(Stem, N, [{Pointer, Hash, Path, _, Type}|T]) ->
+    <<A:4>> = lists:nth(N, Path),
+    S2 = stem:add(Stem, A, Type, Pointer, Hash),
+    batch3(S2, N, T).
+    %we will look at pairs at the same time, and delete stuff from the older of the two. That way we still have everything when we move on to the next pair.
+    %use stem:add(branch, direction, type, pointer, hash, cfg) to to add a child to a stem. Remember, you cannot know the pointer until the child stem is already added. The root of the trie is the last thing we can calculate.
+    %So every time we iterate over the list of branches, some of the branches might combine, until eventually there is only 1 branch left, which is the root branch.
+
+sort_by_path([], _) -> [];
+sort_by_path([X], _) -> [X];
+sort_by_path([Pivot|List], CFG) ->
+    Key = leaf:path_maker(leaf:key(Pivot), CFG),
+    {Below, Above} = pivot_split(Key, List, [], [], CFG),
+    sort_by_path(Below, CFG) ++ 
+	[Pivot] ++ 
+	sort_by_path(Above, CFG).
+pivot_split(_, [], Below, Above, _) -> {Below, Above};
+pivot_split(PKey, [H|T], Below, Above, CFG) ->
+    Key = leaf:path_maker(leaf:key(H), CFG),
+    B = compare_keys(PKey, Key),
+    {C, D} = case B of
+		 true -> {[H|Below], Above};
+		 false -> {Below, [H|Above]}
+	     end,
+    pivot_split(PKey, T, C, D, CFG).
+compare_keys([<<A:4>>|AT], [<<B:4>>|BT]) ->
+    if
+	A > B -> true;
+	B > A -> false;
+	true -> compare_keys(AT, BT)
+    end.
+store_batch_helper([], _, X, _) -> X;
+store_batch_helper([H|T], CFG, BD, Root) ->
+    NLP = leaf:put(H, CFG),
+    NLH = leaf:hash(H, CFG),
+    Path = leaf:path(H, CFG),
+    Br = case get_branch(Path, 0, Root, [], CFG) of
+	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
+	    %need to add 1 or more stems.
+		{A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
+		[H|T] = empty_stems(max(1, A-length(Branch)+1), CFG),
+		LH2 = leaf:hash(Leaf2, CFG),
+		H2 = stem:add(H, N2, 2, LP2, LH2),
+		[H2|T]++Branch;
+	    AB -> %overwrite
+		AB
+    end,
+    store_batch_helper(T, CFG, [{NLP, NLH, Path, Br, 2}|BD], Root).
 store(Leaf, Root, CFG) ->
     %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
     LPointer = leaf:put(Leaf, CFG),
