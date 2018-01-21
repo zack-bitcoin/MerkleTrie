@@ -107,34 +107,22 @@ get_branch(Path, N, Parent, Trail, CFG) ->
 		    {Leaf, Pointer, RP}
 	    end
     end.
--spec store_branch(nonempty_branch(), leaf:path(),
-		   stem:leaf_t(), leaf:leaf_p(), stem:hash(),
-		   cfg:cfg()) -> Result when
-      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()};
-		  (nonempty_branch(), leaf:path(),
-		   stem:empty_t(), stem:empty_p(), stem:hash(),
-		   cfg:cfg()) -> Result when
-      Result :: {RootHash::stem:hash(), Root::stem:stem_p(), get:proof()}.
-store_branch(Branch = [_|_], Path, Type, Pointer, Hash, CFG) when Type =:= 0;
-								  Type =:= 2 ->
-    store_branch_internal(Branch, Path, Type, Pointer, Hash, CFG).
-store_branch_internal([], Path, _, Pointer, _, CFG) ->
+store_branch([], Path, _, Pointer, _, CFG) ->
     %Instead of getting the thing, we can build it up while doing store.
     {Hash, _, Proof} = get:get(Path, Pointer, CFG),
     {Hash, Pointer, Proof};
 
-store_branch_internal([B|Branch], Path, Type, Pointer, Hash, CFG) ->
+store_branch([B|Branch], Path, Type, Pointer, Hash, CFG) ->
     S = length(Branch),
     <<A:4>> = lists:nth(S+1,Path),
     S1 = stem:add(B, A, Type, Pointer, Hash),
     Loc = stem:put(S1, CFG),
     SH = stem:hash(S1, CFG),
-    store_branch_internal(Branch, Path, 1, Loc, SH, CFG).
+    store_branch(Branch, Path, 1, Loc, SH, CFG).
 -spec path_match(Path1::leaf:path(), Path2::leaf:path()) ->
 			{ConvergenceLength::path_nibble_index(),
 			 NextNibbleInPath2::stem:nibble()}.
-path_match(P1, P2) ->
-    path_match(P1, P2, 0).
+path_match(P1, P2) -> path_match(P1, P2, 0).
 path_match([<<A:4>> | P1], [<<B:4>> | P2], N) ->
     if
 	A == B -> path_match(P1, P2, N+1);
