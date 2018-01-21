@@ -362,11 +362,12 @@ test(14, CFG) ->
     Loc = 1,
     La = <<255, 0>>,
     Leaves = [leaf:new(1, La, 0, CFG),
-	      leaf:new(2, La, 0, CFG),
-	      leaf:new(33, La, 0, CFG),
+	      %leaf:new(2, La, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
 	      leaf:new(17, La, 0, CFG)],
     %Leaves = [Leaf, Leaf3],
-    io:fwrite(packer:pack(store:batch(Leaves, Loc, CFG))),
+    %io:fwrite(packer:pack(store:batch(Leaves, Loc, CFG))),
+    trie:put_batch(Leaves, Loc, trie01),
 %root hash <<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
     success;
 test(15, CFG) ->

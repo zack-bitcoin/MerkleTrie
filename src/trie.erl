@@ -1,6 +1,6 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2, restore/5,restore/7]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,put_batch/3,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2, restore/5,restore/7]).
 init(CFG) ->
     ID = cfg:id(CFG),
     Top = bits:top(ID),
@@ -34,6 +34,9 @@ handle_call({put, Key, Value, Meta, Root}, _From, CFG) ->
     valid_key(Key),
     Leaf = leaf:new(Key, Value, Meta, CFG),
     {_, NewRoot, _} = store:store(Leaf, Root, CFG),
+    {reply, NewRoot, CFG};
+handle_call({put_batch, Leaves, Root}, _From, CFG) ->
+    {Hash, NewRoot} = store:batch(Leaves, Root, CFG),
     {reply, NewRoot, CFG};
 handle_call({get, Key, RootPointer}, _From, CFG) -> 
     valid_key(Key),
@@ -78,8 +81,8 @@ restore(Leaf, Hash, Path, Root, ID) ->
 	    Hash, Path, Root, ID).
 restore(Key, Value, Meta, Hash, Path, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {restore, Key, Value, Meta, Hash, Path, Root}).
-    
-    
+put_batch(Leaves, Root, ID) -> 
+    gen_server:call({global, ids:main_id(ID)}, {put_batch, Leaves, Root}).
 put(Key, Value, Meta, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {put, Key, Value, Meta, Root}).
 -spec get(leaf:key(), stem:stem_p(), atom()) ->
