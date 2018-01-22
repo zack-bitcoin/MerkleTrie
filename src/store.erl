@@ -175,7 +175,7 @@ store_batch_helper([H|T], CFG, BD, Root) ->
     case leaf:value(H) of
 	empty ->
 	    case GB of
-		{_, _, _} -> store_batch_helper(T, CFG, BD, Root);
+		{_, _, _} -> store_batch_helper(T, CFG, BD, Root); %if you are deleting something that doesn't exist, then you don't have to do anything.
 		Branch0 ->
 		    X = cfg:hash_size(CFG)*8,
 		    EmptyHash = <<0:X>>,
@@ -188,10 +188,10 @@ store_batch_helper([H|T], CFG, BD, Root) ->
 		     {Leaf2, LP2, Branch} ->%split leaf, add stem(s)
 						%need to add 1 or more stems.
 			 {A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
-			 [H|T] = empty_stems(max(1, A-length(Branch)+1), CFG),
+			 [Hp|Tp] = empty_stems(max(1, A-length(Branch)+1), CFG),
 			 LH2 = leaf:hash(Leaf2, CFG),
-			 H2 = stem:add(H, N2, 2, LP2, LH2),
-			 [H2|T]++Branch;
+			 H2 = stem:add(Hp, N2, 2, LP2, LH2),
+			 [H2|Tp]++Branch;
 		     AB -> %overwrite
 			 AB
 		 end,

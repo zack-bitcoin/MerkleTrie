@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
+    %V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
     %V = [5, 6, 12, 13],
-    %V = [14],
+    V = [14],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -361,7 +361,9 @@ test(13, CFG) ->
 test(14, CFG) ->
     Loc0 = 1,
     La = <<255, 0>>,
-    Loc = trie:put(2, La, 0, Loc0, trie01),
+    Lb = <<255, 1>>,
+    Loc1 = trie:put(2, La, 0, Loc0, trie01),
+    Loc = trie:put(1, Lb, 0, Loc1, trie01),
     Leaves = [leaf:new(1, La, 0, CFG),
 	      leaf:new(2, empty, 0, CFG),
 	      %leaf:new(33, La, 0, CFG),
