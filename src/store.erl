@@ -78,6 +78,7 @@ batch(Leaves, Root, CFG) ->
 			 length(B)
 		 end, BranchData)),
     batch2(BStart, BranchData, CFG).
+extra_stem([], _) -> [];
 extra_stem([X], _) -> [X];
 extra_stem([A|[B|T]], CFG) ->
     {Pa,Ha,Aa,Ra,Tya} = A,

@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
     %V = [5, 6, 12, 13],
-    V = [14],
+    %V = [14],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
