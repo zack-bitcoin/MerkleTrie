@@ -81,6 +81,7 @@ restore(Leaf, Hash, Path, Root, ID) ->
 	    Hash, Path, Root, ID).
 restore(Key, Value, Meta, Hash, Path, Root, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {restore, Key, Value, Meta, Hash, Path, Root}).
+put_batch([], Root, _) -> Root;
 put_batch(Leaves, Root, ID) -> 
     gen_server:call({global, ids:main_id(ID)}, {put_batch, Leaves, Root}).
 put(Key, Value, Meta, Root, ID) ->
