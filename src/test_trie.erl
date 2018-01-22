@@ -359,10 +359,11 @@ test(13, CFG) ->
     {Hash, Leaf9, _} = trie:get(ID3, Root9, trie01),
     success;
 test(14, CFG) ->
-    Loc = 1,
+    Loc0 = 1,
     La = <<255, 0>>,
+    Loc = trie:put(2, La, 0, Loc0, trie01),
     Leaves = [leaf:new(1, La, 0, CFG),
-	      %leaf:new(2, La, 0, CFG),
+	      leaf:new(2, empty, 0, CFG),
 	      %leaf:new(33, La, 0, CFG),
 	      leaf:new(17, La, 0, CFG)],
     %Leaves = [Leaf, Leaf3],

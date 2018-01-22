@@ -170,21 +170,33 @@ compare_keys([<<A:4>>|AT], [<<B:4>>|BT]) ->
     end.
 store_batch_helper([], _, X, _) -> X;
 store_batch_helper([H|T], CFG, BD, Root) ->
-    NLP = leaf:put(H, CFG),
-    NLH = leaf:hash(H, CFG),
     Path = leaf:path(H, CFG),
-    Br = case get_branch(Path, 0, Root, [], CFG) of
-	{Leaf2, LP2, Branch} ->%split leaf, add stem(s)
-	    %need to add 1 or more stems.
-		{A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
-		[H|T] = empty_stems(max(1, A-length(Branch)+1), CFG),
-		LH2 = leaf:hash(Leaf2, CFG),
-		H2 = stem:add(H, N2, 2, LP2, LH2),
-		[H2|T]++Branch;
-	    AB -> %overwrite
-		AB
-    end,
-    store_batch_helper(T, CFG, [{NLP, NLH, Path, Br, 2}|BD], Root).
+    GB = get_branch(Path, 0, Root, [], CFG),
+    case leaf:value(H) of
+	empty ->
+	    case GB of
+		{_, _, _} -> store_batch_helper(T, CFG, BD, Root);
+		Branch0 ->
+		    X = cfg:hash_size(CFG)*8,
+		    EmptyHash = <<0:X>>,
+		    store_batch_helper(T, CFG, [{0, <<0:X>>, Path, Branch0, 0}|BD], Root)
+	    end;
+	_ ->
+	    NLP = leaf:put(H, CFG),
+	    NLH = leaf:hash(H, CFG),
+	    Br = case GB of
+		     {Leaf2, LP2, Branch} ->%split leaf, add stem(s)
+						%need to add 1 or more stems.
+			 {A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
+			 [H|T] = empty_stems(max(1, A-length(Branch)+1), CFG),
+			 LH2 = leaf:hash(Leaf2, CFG),
+			 H2 = stem:add(H, N2, 2, LP2, LH2),
+			 [H2|T]++Branch;
+		     AB -> %overwrite
+			 AB
+		 end,
+	    store_batch_helper(T, CFG, [{NLP, NLH, Path, Br, 2}|BD], Root)
+    end.
 store(Leaf, Root, CFG) ->
     %we could make it faster if the input was like [{Key1, Value1}, {Key2, Value2}...]
     LPointer = leaf:put(Leaf, CFG),
