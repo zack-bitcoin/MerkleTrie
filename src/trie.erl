@@ -1,6 +1,7 @@
 -module(trie).
 -behaviour(gen_server).
--export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,put_batch/3,delete/3,garbage/2,garbage_leaves/2,get_all/2,new_trie/2, restore/5,restore/7]).
+-export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,put_batch/3,delete/3,%garbage/2,garbage_leaves/2,
+	 get_all/2,new_trie/2, restore/5,restore/7, prune/3]).
 init(CFG) ->
     ID = cfg:id(CFG),
     Top = bits:top(ID),
@@ -96,11 +97,11 @@ get(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get, Key, Root
 get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root}).
 -spec delete(leaf:key(), stem:stem_p(), atom()) -> stem:stem_p().
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
--spec garbage([stem:stem_p()], atom()) -> ok.
-garbage(Keepers, ID) -> 
-    gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
-garbage_leaves(KLS, ID) ->
-    gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
+%-spec garbage([stem:stem_p()], atom()) -> ok.
+%garbage(Keepers, ID) -> 
+%    gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
+%garbage_leaves(KLS, ID) ->
+%    gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
 prune(OldRoot, NewRoot, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {prune, OldRoot, NewRoot}).
 

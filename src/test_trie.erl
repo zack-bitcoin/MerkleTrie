@@ -78,11 +78,11 @@ test(1, CFG) ->
     Leafcc = leaf:new(L3abc, L3b, Meta, CFG), 
     {Root7, Loc7, _} = store:store(Leafcc, Loc6, CFG),
     {Root7, _, _} = store:store(Leafcc, Loc6, CFG),
-    trie:garbage([Loc7], ?ID),
-    timer:sleep(100),
+    %trie:garbage([Loc7], ?ID),
+    %timer:sleep(100),
     trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
-    1 = dump:put(ReplaceStem, ids:stem(CFG)),
+    %1 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
     true = verify:proof(PP4,Leafcc,PP5,CFG),
     success;
@@ -163,17 +163,17 @@ test(5, CFG) ->
     {Hash2, Leaf3, Proof8} = get:get(leaf:path(Leaf3, CFG), Root4, CFG),
     Lpath1 = leaf:path(Leaf1, CFG),
     X = [{Lpath1, Root4}],
-    garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    %garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     %timer:sleep(500),
-    timer:sleep(500),
+    %timer:sleep(500),
     {Hash2, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
     true = verify:proof(Hash2, Leaf1, Proof, CFG),
     true = verify:proof(Hash, Leaf2, Proof2, CFG),
-    {Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    %{Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
     {Hash2, Root5, _} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
-    {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
+    %{Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
     {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
     %we need to be able to add proofs for things into an empty database.
     true = verify:proof(Hash2, Leaf3, Proof5, CFG),
@@ -405,7 +405,7 @@ test(16, CFG) ->
     New = trie:put_batch(Leaves2, Old, trie01),
     %insert a batch to get oldroot old,
     %insert a batch to get new
-    Ls = prune:stem(Old, New, CFG),
+    Ls = trie:prune(Old, New, trie01),
     io:fwrite("prune removed these "),
     io:fwrite(packer:pack(Ls)),
     io:fwrite("\n"),
