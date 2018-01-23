@@ -22,8 +22,8 @@ handle_call({garbage_leaves, KLS}, _From, CFG) ->
     garbage:garbage_leaves(KLS, CFG),
     {reply, ok, CFG};
 handle_call({prune, OldRoot, NewRoot}, _From, CFG) ->
-    prune:stem(OldRoot, NewRoot, CFG),
-    {reply, ok, CFG};
+    X = prune:stem(OldRoot, NewRoot, CFG),
+    {reply, X, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->
     valid_key(Key),
     NewRoot = delete:delete(Key, Root, CFG),
@@ -103,8 +103,6 @@ garbage_leaves(KLS, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
 prune(OldRoot, NewRoot, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {prune, OldRoot, NewRoot}).
-    
-
 
 get_all_internal(Root, CFG) ->
     S = stem:get(Root, CFG),
@@ -114,12 +112,9 @@ get_all_internal(Root, CFG) ->
 get_all_internal2([], [], _) -> [];
 get_all_internal2([A|AT], [T|TT], CFG) -> 
     B = case T of
-	    0 -> %empty
-		[];
-	    1 -> %another stem
-		get_all_internal(A, CFG);
-	    2 -> %a leaf.
-		[leaf:get(A, CFG)]
+	    0 -> [];%empty
+	    1 -> get_all_internal(A, CFG);%another stem
+	    2 -> [leaf:get(A, CFG)]%a leaf
 	end,
     B++get_all_internal2(AT, TT, CFG).
 valid_key(Key) ->
