@@ -21,7 +21,8 @@ loop(CFG, S1, S2, N, R) ->
 	    case {T1, T2} of
 		{1, 1} -> stem(P1, P2, CFG);
 		{1, _} -> stem(P1, 0, CFG);
-		{2, _} -> leaf(P1, CFG), [P1]
+		{2, _} -> leaf(P1, CFG), 
+			  [{P1, P2}]
 	    end
     end,
     loop(CFG, S1, S2, N+1, R ++ R2).
