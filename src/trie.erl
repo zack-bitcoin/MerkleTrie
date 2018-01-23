@@ -21,6 +21,9 @@ handle_call({garbage, Keepers}, _From, CFG) ->
 handle_call({garbage_leaves, KLS}, _From, CFG) -> 
     garbage:garbage_leaves(KLS, CFG),
     {reply, ok, CFG};
+handle_call({prune, OldRoot, NewRoot}, _From, CFG) ->
+    prune:stem(OldRoot, NewRoot, CFG),
+    {reply, ok, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->
     valid_key(Key),
     NewRoot = delete:delete(Key, Root, CFG),
@@ -98,6 +101,9 @@ garbage(Keepers, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {garbage, Keepers}).
 garbage_leaves(KLS, ID) ->
     gen_server:call({global, ids:main_id(ID)}, {garbage_leaves, KLS}).
+prune(OldRoot, NewRoot, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {prune, OldRoot, NewRoot}).
+    
 
 
 get_all_internal(Root, CFG) ->

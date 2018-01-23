@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,16],
     %V = [5, 6, 12, 13],
-    %V = [14],
+    %V = [16],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -387,8 +387,30 @@ test(15, CFG) ->
     io:fwrite(integer_to_list(Loc3)),
     io:fwrite("\n"),
 %root hash matches test 14. {<<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
+    success;
+test(16, CFG) ->
+    %prune test.
+    Root0 = 1,
+    La = <<255, 0>>,
+    Lb = <<255, 1>>,
+    Leaves1 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, La, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    Leaves2 = [leaf:new(1, Lb, 0, CFG),
+	      leaf:new(3, Lb, 0, CFG)],
+    Leaves3 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(4, La, 0, CFG)],
+    Old = trie:put_batch(Leaves1, Root0, trie01),
+    New = trie:put_batch(Leaves2, Old, trie01),
+    %insert a batch to get oldroot old,
+    %insert a batch to get new
+    prune:stem(Old, New, CFG),
+    io:fwrite(packer:pack(element(2, trie:get(1, New, trie01)))),
+    Final = trie:put_batch(Leaves3, New, trie01),
+    io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
+    %make sure we can still look up stuff from New.
     success.
-    
     
     
 restore(ID, FilledTree, NewTree) ->    
