@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,16],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,17],
     %V = [5, 6, 12, 13],
-    %V = [16],
+    %V = [16, 17],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -411,6 +411,33 @@ test(16, CFG) ->
     io:fwrite("\n"),
     io:fwrite(packer:pack(element(2, trie:get(1, New, trie01)))),
     Final = trie:put_batch(Leaves3, New, trie01),
+    io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
+    %make sure we can still look up stuff from New.
+    success;
+test(17, CFG) ->
+    %prune test.
+    Root0 = 1,
+    La = <<255, 0>>,
+    Lb = <<255, 1>>,
+    Leaves1 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, La, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    Leaves2 = [leaf:new(1, Lb, 0, CFG),
+	      leaf:new(3, Lb, 0, CFG)],
+    Leaves3 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(4, La, 0, CFG)],
+    Old = trie:put_batch(Leaves1, Root0, trie01),
+    New = trie:put_batch(Leaves2, Old, trie01),
+    %insert a batch to get oldroot old,
+    %insert a batch to get new
+    Ls = trie:garbage(New, Old, trie01),
+    %Ls = prune2:stem(New, Old, trie:cfg(trie01)),
+    io:fwrite("garbage removed these "),
+    io:fwrite(packer:pack(Ls)),
+    io:fwrite("\n"),
+    io:fwrite(packer:pack(element(2, trie:get(1, Old, trie01)))),
+    Final = trie:put_batch(Leaves3, Old, trie01),
     io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
     %make sure we can still look up stuff from New.
     success.
