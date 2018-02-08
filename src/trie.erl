@@ -17,16 +17,11 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, _) -> io:format("trie died!"), ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast(_, X) -> {noreply, X}.
-handle_call({garbage, Keepers}, _From, CFG) -> 
-    garbage:garbage(Keepers, CFG),
-    {reply, ok, CFG};
-handle_call({garbage_leaves, KLS}, _From, CFG) -> 
-    garbage:garbage_leaves(KLS, CFG),
-    {reply, ok, CFG};
 handle_call({garbage, NewRoot, OldRoot}, _From, CFG) ->%prune new
     X = prune:garbage(NewRoot, OldRoot, CFG),
     {reply, X, CFG};
 handle_call({prune, OldRoot, NewRoot}, _From, CFG) ->%prune old
+    1=2,
     X = prune:stem(OldRoot, NewRoot, CFG),
     {reply, X, CFG};
 handle_call({delete, Key, Root}, _From, CFG) ->

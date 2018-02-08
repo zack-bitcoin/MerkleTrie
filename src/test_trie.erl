@@ -405,7 +405,7 @@ test(16, CFG) ->
     New = trie:put_batch(Leaves2, Old, trie01),
     %insert a batch to get oldroot old,
     %insert a batch to get new
-    Ls = trie:prune(Old, New, trie01),
+    Ls = trie:garbage(Old, New, trie01),
     io:fwrite("prune removed these "),
     io:fwrite(packer:pack(Ls)),
     io:fwrite("\n"),

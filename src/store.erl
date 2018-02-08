@@ -186,7 +186,8 @@ store_batch_helper([H|T], CFG, BD, Root) ->
 	    NLP = leaf:put(H, CFG),
 	    NLH = leaf:hash(H, CFG),
 	    Br = case GB of
-		     {Leaf2, LP2, Branch} ->%split leaf, add stem(s)
+		     {Leaf2, _LP1, Branch} ->%split leaf, add stem(s)
+			 LP2 = leaf:put(Leaf2, CFG),
 						%need to add 1 or more stems.
 			 {A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
 			 [Hp|Tp] = empty_stems(max(1, A-length(Branch)+1), CFG),
