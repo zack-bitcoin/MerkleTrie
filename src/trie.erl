@@ -69,7 +69,7 @@ cfg(ID) when is_atom(ID) ->
 new_trie(ID, RootStem) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {new_trie, RootStem}).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
-root_hash(ID, RootPointer) when is_atom(ID) ->
+root_hash(ID, RootPointer) when (is_atom(ID) and is_integer(RootPointer))->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).
 -spec put(leaf:key(), leaf:value(), leaf:meta(), stem:stem_p(), atom()) ->
 		 stem:stem_p().
