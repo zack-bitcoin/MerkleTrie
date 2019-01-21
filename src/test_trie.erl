@@ -5,9 +5,9 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,6,7,8,9,10,11,12,13],
+    V = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,17],
     %V = [5, 6, 12, 13],
-    %V = [13],
+    %V = [16, 17],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -78,11 +78,11 @@ test(1, CFG) ->
     Leafcc = leaf:new(L3abc, L3b, Meta, CFG), 
     {Root7, Loc7, _} = store:store(Leafcc, Loc6, CFG),
     {Root7, _, _} = store:store(Leafcc, Loc6, CFG),
-    trie:garbage([Loc7], ?ID),
-    timer:sleep(100),
+    %trie:garbage([Loc7], ?ID),
+    %timer:sleep(100),
     trie:cfg(?ID),
     ReplaceStem = <<0:(8*(dump:word(ids:stem(CFG))))>>,
-    1 = dump:put(ReplaceStem, ids:stem(CFG)),
+    %1 = dump:put(ReplaceStem, ids:stem(CFG)),
     {PP4,Leafcc,PP5} = get:get(L3, Loc7, CFG),
     true = verify:proof(PP4,Leafcc,PP5,CFG),
     success;
@@ -163,17 +163,17 @@ test(5, CFG) ->
     {Hash2, Leaf3, Proof8} = get:get(leaf:path(Leaf3, CFG), Root4, CFG),
     Lpath1 = leaf:path(Leaf1, CFG),
     X = [{Lpath1, Root4}],
-    garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
+    %garbage:garbage_leaves(X, CFG),%After we do garbage leaves we can't insert things into the merkle tree normally. 
     %many stems are missing, so we can't make proofs of anything we don't save, but we can still verify them.
     %We need a merkle proof of it's previous state in order to update.
     %timer:sleep(500),
-    timer:sleep(500),
+    %timer:sleep(500),
     {Hash2, Leaf1, Proof} = get:get(Lpath1, Root4, CFG),
     true = verify:proof(Hash2, Leaf1, Proof, CFG),
     true = verify:proof(Hash, Leaf2, Proof2, CFG),
-    {Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
+    %{Hash2, unknown, _} = get:get(leaf:path(Leaf2, CFG), Root4, CFG),
     {Hash2, Root5, _} = store:restore(Leaf2, Hash2, Proof7, Root4, CFG),
-    {Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
+    %{Hash2, unknown, _} = get:get(leaf:path(Leaf3, CFG), Root5, CFG),
     {Hash2, Root6, Proof5} = store:restore(Leaf3, Hash2, Proof8, Root5, CFG),
     %we need to be able to add proofs for things into an empty database.
     true = verify:proof(Hash2, Leaf3, Proof5, CFG),
@@ -357,6 +357,89 @@ test(13, CFG) ->
     {Hash, Leaf7, _} = trie:get(ID1, Root9, trie01),
     {Hash, Leaf8, _} = trie:get(ID2, Root9, trie01),
     {Hash, Leaf9, _} = trie:get(ID3, Root9, trie01),
+    success;
+test(14, CFG) ->
+    Loc0 = 1,
+    La = <<255, 0>>,
+    Lb = <<255, 1>>,
+    Loc1 = trie:put(2, La, 0, Loc0, trie01),
+    Loc = trie:put(1, Lb, 0, Loc1, trie01),
+    Leaves = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, empty, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    %Leaves = [Leaf, Leaf3],
+    %io:fwrite(packer:pack(store:batch(Leaves, Loc, CFG))),
+    trie:put_batch(Leaves, Loc, trie01),
+%root hash <<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
+    success;
+test(15, CFG) ->
+    Loc = 1,
+    La = <<255, 0>>,
+    Leaf = leaf:new(1, La, 0, CFG),
+    %Leaf2 = leaf:new(33, La, 0, CFG),
+    Leaf3 = leaf:new(17, La, 0, CFG),
+    %Leaves = [Leaf, Leaf2, Leaf3],
+    Leaves = [Leaf, Leaf3],
+    Loc2 = trie:put(1, La, 0, Loc, trie01),
+    Loc3 = trie:put(17, La, 0, Loc2, trie01),
+    io:fwrite("loc 3 is "),
+    io:fwrite(integer_to_list(Loc3)),
+    io:fwrite("\n"),
+%root hash matches test 14. {<<89,127,205,119,243,7,208,239,239,229,27,12,178,241,27,
+    success;
+test(16, CFG) ->
+    %prune test.
+    Root0 = 1,
+    La = <<255, 0>>,
+    Lb = <<255, 1>>,
+    Leaves1 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, La, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    Leaves2 = [leaf:new(1, Lb, 0, CFG),
+	      leaf:new(3, Lb, 0, CFG)],
+    Leaves3 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(4, La, 0, CFG)],
+    Old = trie:put_batch(Leaves1, Root0, trie01),
+    New = trie:put_batch(Leaves2, Old, trie01),
+    %insert a batch to get oldroot old,
+    %insert a batch to get new
+    Ls = trie:garbage(Old, New, trie01),
+    io:fwrite("prune removed these "),
+    io:fwrite(packer:pack(Ls)),
+    io:fwrite("\n"),
+    io:fwrite(packer:pack(element(2, trie:get(1, New, trie01)))),
+    Final = trie:put_batch(Leaves3, New, trie01),
+    io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
+    %make sure we can still look up stuff from New.
+    success;
+test(17, CFG) ->
+    %prune test.
+    Root0 = 1,
+    La = <<255, 0>>,
+    Lb = <<255, 1>>,
+    Leaves1 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(2, La, 0, CFG),
+	      %leaf:new(33, La, 0, CFG),
+	      leaf:new(17, La, 0, CFG)],
+    Leaves2 = [leaf:new(1, Lb, 0, CFG),
+	      leaf:new(3, Lb, 0, CFG)],
+    Leaves3 = [leaf:new(1, La, 0, CFG),
+	      leaf:new(4, La, 0, CFG)],
+    Old = trie:put_batch(Leaves1, Root0, trie01),
+    New = trie:put_batch(Leaves2, Old, trie01),
+    %insert a batch to get oldroot old,
+    %insert a batch to get new
+    Ls = trie:garbage(New, Old, trie01),
+    %Ls = prune2:stem(New, Old, trie:cfg(trie01)),
+    io:fwrite("garbage removed these "),
+    io:fwrite(packer:pack(Ls)),
+    io:fwrite("\n"),
+    io:fwrite(packer:pack(element(2, trie:get(1, Old, trie01)))),
+    Final = trie:put_batch(Leaves3, Old, trie01),
+    io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
+    %make sure we can still look up stuff from New.
     success.
     
     
