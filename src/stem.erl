@@ -174,11 +174,14 @@ empty_trie(Root, CFG) ->
 test() ->
     P = {6,5,4,3,7,8,9,4,5,3,2,6,7,8,3,4},
     T = {0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    %CFG = cfg:new(1, 9, 2, trie),
+    %CFG = cfg:new(1, 9, 2, trie), %path value id meta hash_size
     CFG = trie:cfg(trie01),
+%{cfg,5,2,trie01,2,32} path, value, id, meta, hash_size
+%596 total, average 37.25
     H = empty_hashes(CFG),
     S = #stem{types = T, pointers = P, hashes = H},
     S2 = serialize(S, CFG),
+    io:fwrite(integer_to_list(size(S2))),
     S = deserialize(S2, CFG),
     Hash = hash(S, CFG),
     add(S, 3, 1, 5, Hash),

@@ -93,9 +93,11 @@ hash(L, CFG) ->
     end.
 test() ->
     CFG = trie:cfg(trie01),
-    HS = cfg:hash_size(CFG)*8,
+%{cfg,5,2,trie01,2,32} path, value, id, meta, hash_size
+     %HS = cfg:hash_size(CFG)*8,
     X = new(1, <<0:16>>, 0, CFG),
     SX = serialize(X, CFG),
+    io:fwrite(integer_to_list(size(SX))),%9
     X = deserialize(serialize(X, CFG), CFG),
     true = is_serialized_leaf(SX, CFG),
     success.
