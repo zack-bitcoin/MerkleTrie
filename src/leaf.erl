@@ -1,5 +1,6 @@
 -module(leaf).
 -export([new/4, key/1, value/1, meta/1, path/2, path_maker/2, hash/2, put/2, get/2, serialize/2, deserialize/2,
+	 put_batch/2,
 	is_serialized_leaf/2, test/0]).
 -export_type([leaf/0,key/0,value/0,meta/0,leaf_p/0,path/0]).
 -record(leaf, { key :: key()
@@ -74,6 +75,14 @@ value(L) -> L#leaf.value.
 -spec meta(leaf()) -> meta().
 meta(X) -> X#leaf.meta.
 -spec put(leaf(), cfg:cfg()) -> leaf_p().
+put_batch(Leaves, CFG) ->
+    SL = serialize_leaves(Leaves, CFG),
+    dump:put_batch(SL, ids:leaf(CFG)).
+serialize_leaves([], _) ->
+    [];
+serialize_leaves([{N, L}| T], CFG) ->
+    [{N, serialize(L, CFG)}|serialize_leaves(T, CFG)].
+
 put(Leaf, CFG) ->
     dump:put(serialize(Leaf, CFG), 
 	     ids:leaf(CFG)).

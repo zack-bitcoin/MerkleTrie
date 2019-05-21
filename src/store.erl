@@ -68,16 +68,37 @@ max_list([A|[B|T]]) ->
 batch(Leaves, Root, CFG) ->
     %first we should sort the leaves by path. This way if any of the proofs can be combines, they will be adjacent in the list. So we can combine all the proofs by comparing pairs of adjacent proofs.
     Leaves2 = sort_by_path(Leaves, CFG),
-    BranchData0 = store_batch_helper(Leaves2, CFG, [], Root),
-    BranchData = extra_stem(BranchData0, CFG),
+    case cfg:mode(CFG) of
+	ram ->
+	    Top = dump:highest(ids:leaf(CFG)),
+	    {BranchData0, ToStore} = store_batch_helper_ram(Leaves2, CFG, [], Root, Top, []),%store leaves
+	    leaf:put_batch(ToStore, CFG),
+	    BranchData = extra_stem(BranchData0, CFG),
+	    BStart = max_list(
+		       lists:map(
+			 fun(Branch) ->
+				 {_,_,_,B,_} = Branch,
+				 length(B)
+			 end, BranchData)),
+	    StemTop = dump:highest(ids:stem(CFG)),
+{FHash, FLoc, SToStore} = batch2_ram(BStart, BranchData, CFG, StemTop, []),
+	        %io:fwrite("store batch ram mode 2\n"),
+	    stem:put_batch(SToStore, CFG),%store stems
+	        %io:fwrite("store batch ram mode 3\n"),
+	    {FHash, FLoc};
+
+	hd ->
+	    BranchData0 = store_batch_helper(Leaves2, CFG, [], Root),
+	    BranchData = extra_stem(BranchData0, CFG),
     %leaf-pointer, leaf-hash, leaf-path, branch, type
-    BStart = max_list(
-	       lists:map(
-		 fun(Branch) ->
-			 {_, _, _, B, _} = Branch,
-			 length(B)
-		 end, BranchData)),
-    batch2(BStart, BranchData, CFG).
+	    BStart = max_list(
+		       lists:map(
+			 fun(Branch) ->
+				 {_, _, _, B, _} = Branch,
+				 length(B)
+			 end, BranchData)),
+	    batch2(BStart, BranchData, CFG)
+    end.
 extra_stem([], _) -> [];
 extra_stem([X], _) -> [X];
 extra_stem([A|[B|T]], CFG) ->
@@ -105,6 +126,19 @@ extra_stem([A|[B|T]], CFG) ->
 	true -> [A|extra_stem([B|T], CFG)]
     end.
     %{pointer, hash, path, branch, type}
+batch2_ram(1, Branches, _CFG, Pointer, T) ->
+    
+    {_, Hash, _, [Stem], _} = hd(Branches),
+        Stem2 = batch3(Stem, 1, Branches),
+        H = {Pointer, Stem2},
+        %Loc = stem:put(Stem2, CFG),
+    {Hash, Pointer, [H|T]};
+batch2_ram(N, Branches, CFG, Pointer, T) ->
+    %If the first N-1 nibbles of the path are the same, then they should be combined using batch3.
+    {NewBranches, Pointer2, T2} = branch2helper_ram(N, Branches, CFG, Pointer, T, []),
+    %Store the nth thing in each branch onto the blockchain, update the pointer and hash etc
+    batch2_ram(N-1, NewBranches, CFG, Pointer2, T2).
+
 batch2(1, Branches, CFG) ->
     {_, Hash, _, [Stem], _} = hd(Branches),
     Stem2 = batch3(Stem, 1, Branches),
@@ -168,6 +202,62 @@ compare_keys([<<A:4>>|AT], [<<B:4>>|BT]) ->
 	A > B -> true;
 	B > A -> false;
 	true -> compare_keys(AT, BT)
+    end.
+branch2helper_ram(_, [], _, P, T, B) ->
+     {B, P, T};
+branch2helper_ram(N, Branches, CFG, P, T, B0) ->
+    {_, _, Path, [Stem|ST], _} = hd(Branches),
+    if 
+       length([Stem|ST]) == N ->
+	       {M, _} = lists:split(N-1, Path),
+	       {Combine, Rest} = batch4(Branches, M, N, []),
+	       Stem2 = batch3(Stem, N, Combine),
+	       %Loc = stem:put(Stem2, CFG),
+	       Hash = stem:hash(Stem2, CFG),
+	       B1 = B0 ++ [{P, Hash, Path, ST, 1}],
+	       %[{Loc, Hash, Path, ST, 1}|branch2helper(N, Rest, CFG)];
+	       branch2helper_ram(N, Rest, CFG, P+1, [{P, Stem2}|T], B1);
+       length([Stem|ST]) < N ->
+	       B1 = B0 ++ [hd(Branches)],
+	       branch2helper_ram(N, tl(Branches), CFG, P, T, B1)
+	       %[hd(Branches)|branch2helper(N, tl(Branches), CFG)]
+    end.
+
+store_batch_helper_ram([], _, X, _, _Pointer, L) ->
+     
+    %io:fwrite("store batch helper ram done\n"),
+    {X, L};
+store_batch_helper_ram([H|T], CFG, BD, Root, Pointer, L) ->
+    %io:fwrite("sbhr 0\n"),
+    Path = leaf:path(H, CFG),
+    GB = get_branch(Path, 0, Root, [], CFG),
+    %io:fwrite("sbhr 1\n"),
+    case leaf:value(H) of
+       empty ->
+	       case GB of
+		  {_, _, _} -> store_batch_helper_ram(T, CFG, BD, Root, Pointer, L); %if you are deleting something that doesn't exist, then you don't have to do anything.
+		  Branch0 ->
+		          X = cfg:hash_size(CFG)*8,
+		          EmptyHash = <<0:X>>,
+		          store_batch_helper_ram(T, CFG, [{0, <<0:X>>, Path, Branch0, 0}|BD], Root, Pointer, L)
+			      end;
+       _ ->
+	       %NLP = leaf:put(H, CFG),
+	       NLH = leaf:hash(H, CFG),
+	       {Br, NewPointer, L2} = 
+	       case GB of
+		      {Leaf2, _LP1, Branch} ->%split leaf, add stem(s)
+		      %LP2 = leaf:put(Leaf2, CFG),
+		      %need to add 1 or more stems.
+		       {A, N2} = path_match(Path, leaf:path(Leaf2, CFG)),
+		       [Hp|Tp] = empty_stems(max(1, A-length(Branch)+1), CFG),
+		       LH2 = leaf:hash(Leaf2, CFG),
+		       H2 = stem:add(Hp, N2, 2, Pointer + 1, LH2),
+		       {[H2|Tp]++Branch, Pointer + 2, [{Pointer + 1, Leaf2}|[{Pointer, H}|L]]};
+		       AB -> %overwrite
+		       {AB, Pointer + 1, [{Pointer, H}|L]}
+			   end,
+	    store_batch_helper_ram(T, CFG, [{Pointer, NLH, Path, Br, 2}|BD], Root, NewPointer, L2)
     end.
 store_batch_helper([], _, X, _) -> X;
 store_batch_helper([H|T], CFG, BD, Root) ->
