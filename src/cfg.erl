@@ -1,11 +1,12 @@
 -module(cfg).
 -compile(export_all).
 -export_type([cfg/0,path/0,value/0,id/0,meta/0,hash_size/0]).
--record(cfg, { path :: path()
-	     , value :: value()
-	     , id :: id()
-	     , meta :: meta()
-	     , hash_size :: hash_size()
+-record(cfg, { path
+	     , value
+	     , id
+	     , meta
+	     , hash_size
+	     , mode
 	     }).
 -opaque cfg() :: #cfg{}.
 -type path() :: pos_integer().
@@ -13,12 +14,13 @@
 -type id() :: atom().
 -type meta() :: non_neg_integer().
 -type hash_size() :: pos_integer().
--spec new(path(), value(), id(), meta(), hash_size()) -> cfg().
-new(P, V, ID, M, H) -> #cfg{path = P, value = V, 
-			    id = ID, meta = M,
-			    hash_size = H }.
+%-spec new(path(), value(), id(), meta(), hash_size()) -> cfg().
+new(P, V, ID, M, H, X) -> #cfg{path = P, value = V, 
+			       id = ID, meta = M,
+			       hash_size = H , mode = X}.
 -spec path(cfg()) -> path().
 path(X) -> X#cfg.path. %how many bytes to store the path (defaul is 5)
+mode(X) -> X#cfg.mode.
 -spec value(cfg()) -> value().
 value(X) -> X#cfg.value.%how many bytes to store the value.
 -spec meta(cfg()) -> meta().

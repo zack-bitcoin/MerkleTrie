@@ -4,7 +4,7 @@
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, Location) -> 
     %keylength is the number of bytes to encode the path that you follow on the trie.
-    CFG = cfg:new(KeyLength, Size, ID, Meta, HashSize),
+    CFG = cfg:new(KeyLength, Size, ID, Meta, HashSize, Mode),
     supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode, Location]).
 stop() -> halt().
 init([CFG, Amount, Mode, Location]) ->

@@ -5,7 +5,10 @@
 	 prune/3, garbage/3]).
 init(CFG) ->
     ID = cfg:id(CFG),
-    Top = bits:top(ID),
+    Top = case cfg:mode(CFG) of
+	      hd -> bits:top(ID);
+	      ram -> dump:highest(ids:stem(CFG))
+	  end,
     case Top of
 	1 -> stem:put(stem:new_empty(CFG), CFG);%doesn't return 1 when we restart.
 	_ -> ok
