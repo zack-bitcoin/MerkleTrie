@@ -1,12 +1,21 @@
 -module(trie_sup).
 -behaviour(supervisor).
--export([start_link/8,init/1,stop/0]).
+-export([start_link/8,init/1,stop/1]).
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, Location) -> 
     %keylength is the number of bytes to encode the path that you follow on the trie.
     CFG = cfg:new(KeyLength, Size, ID, Meta, HashSize, Mode),
     supervisor:start_link({global, cfg:id(CFG)}, ?MODULE, [CFG, Amount, Mode, Location]).
-stop() -> halt().
+stop(ID) -> 
+    CFG = trie:cfg(ID),
+    supervisor:terminate_child({global, ID}, ids:main(CFG)),
+    supervisor:terminate_child({global, ID}, ids:stem(CFG)),
+    supervisor:terminate_child({global, ID}, ids:leaf(CFG)),
+    supervisor:terminate_child({global, ID}, ids:bits(CFG)),
+    ok.
+
+%trie01_main).
+    %halt().
 init([CFG, Amount, Mode, Location]) ->
     %Size is the size of the data we store in the trie.
     KeyLength = cfg:path(CFG),
