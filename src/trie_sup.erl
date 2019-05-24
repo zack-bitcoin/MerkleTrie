@@ -9,7 +9,9 @@ start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, Location) ->
 stop(ID) -> 
     CFG = trie:cfg(ID),
     supervisor:terminate_child({global, ID}, ids:main(CFG)),
+    dump_sup:stop(ids:stem(CFG)),
     supervisor:terminate_child({global, ID}, ids:stem(CFG)),
+    dump_sup:stop(ids:leaf(CFG)),
     supervisor:terminate_child({global, ID}, ids:leaf(CFG)),
     supervisor:terminate_child({global, ID}, ids:bits(CFG)),
     ok.
