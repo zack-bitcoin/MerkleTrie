@@ -4,6 +4,7 @@
 	 get_all/2,new_trie/2, restore/5,restore/7, 
 	 prune/3, garbage/3]).
 init(CFG) ->
+    process_flag(trap_exit, true),
     ID = cfg:id(CFG),
     Top = case cfg:mode(CFG) of
 	      hd -> bits:top(ID);
@@ -18,7 +19,7 @@ start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_).
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, CFG) -> 
-    io:format("tree "), 
+    io:fwrite("tree "), 
     ID = cfg:id(CFG),
     io:fwrite(ID),
     io:fwrite(" died \n"),
