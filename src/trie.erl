@@ -17,7 +17,9 @@ init(CFG) ->
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
-terminate(_, _) -> io:format("trie died!"), ok.
+terminate(_, _) -> 
+    %io:format("trie died!"), 
+    ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast(_, X) -> {noreply, X}.
 handle_call({garbage, NewRoot, OldRoot}, _From, CFG) ->%prune new
