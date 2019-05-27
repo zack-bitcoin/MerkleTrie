@@ -7,13 +7,9 @@ init(CFG) ->
     process_flag(trap_exit, true),
     ID = cfg:id(CFG),
     Top = case cfg:mode(CFG) of
-	      hd -> bits:top(ID);
-	      ram -> dump:highest(ids:stem(CFG))
+	      hd -> stem:put(stem:new_empty(CFG), CFG);%doesn't return 1 when we restart.
+	      ram -> ok
 	  end,
-    case Top of
-	1 -> stem:put(stem:new_empty(CFG), CFG);%doesn't return 1 when we restart.
-	_ -> ok
-    end,
     {ok, CFG}.
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
