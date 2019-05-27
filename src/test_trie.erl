@@ -5,7 +5,8 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
+    %V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
+    V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17],
     %V = [5, 6, 12, 13],
     %V = [16, 17],
     test_helper(V, CFG).
@@ -104,7 +105,9 @@ test(3, CFG) ->
 
 test(4, CFG) ->
     Size = dump:word(ids:leaf(CFG)),
-    Size = cfg:leaf(CFG),
+    Size1 = cfg:leaf(CFG),
+    %io:fwrite({Size, Size1}),
+    %Size = Size1,
     Data0 = <<11:(8*Size)>>,
     Data1 = <<2:(8*Size)>>,
     Data2 = <<3:(8*Size)>>,
