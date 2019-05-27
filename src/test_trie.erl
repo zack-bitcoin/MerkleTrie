@@ -5,10 +5,10 @@
 
 test() ->
     CFG = trie:cfg(?ID),
-    %V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
-    V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17],
+    V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
+    %V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17],
     %V = [5, 6, 12, 13],
-    %V = [16, 17],
+    %V = [9],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -146,7 +146,8 @@ test(4, CFG) ->
     success;
 
 test(5, CFG) ->
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
@@ -189,7 +190,8 @@ test(6, CFG) ->
     % The full merkel trie will be too big, most people wont keep track of it all. 
     % sometimes parts of the trie get updated that we aren't keeping track of. We need to look at the proof of their update, and update our state root accordingly.
     % We don't get a proof of the final state. We only get a proof of the initial state, and the final state. It is possible to calculate the new proof from this. The reason we don't get the new proof is because depending on which txs get accepted into the block, the root hash of the new state will be different
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     V3 = <<1,3>>,
@@ -234,7 +236,8 @@ test(6, CFG) ->
     success;
 
 test(7, CFG) ->
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     V1 = <<1,1>>,
     V2 = <<1,2>>,
     <<L1:40>> = <<0,0,0,0,2>>,
@@ -266,7 +269,9 @@ test(8, CFG) ->
     success;
     
 test(9, CFG) ->
-    Root0 = 1,
+    %Root0 = 1,
+    %io:fwrite(CFG),
+    Root0 = cfg:empty(CFG),
     S = stem:get(Root0, CFG),
     V1 = <<2,3>>,
     Key = 5,
@@ -290,7 +295,8 @@ test(11, CFG) ->
     Key2 = 2,
     Key3 = 257,
     Key4 = 513,
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     Root = trie:put(Key1, V1, Meta, Root0, trie01),
     %Root = trie:put(Key3, V1, Meta, Root01, trie01),
     {RootHash, Leaf1, Proof1} = trie:get(Key1, Root, trie01),
@@ -309,7 +315,8 @@ test(12, CFG) ->
     Times = 25,
     %Times = 5,
     ID = 2,
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     L2 = test3a(Times, Times, Root0),
     Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
     Hash = trie:root_hash(trie01, Root1),
@@ -343,7 +350,8 @@ test(13, CFG) ->
 
     %Restore our knowledge of various things, and then check that the information is remembered correctly.
     Times = 25,
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     L2 = test3a(Times, Times, Root0),
     Root1 = trie:new_trie(trie01, stem:get(L2, CFG)),
     [ID1, ID2, ID3] = [1, 17, 18],%adding an 18 and a 1 to this list makes it break.
@@ -393,7 +401,8 @@ test(15, CFG) ->
     success;
 test(16, CFG) ->
     %prune test.
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     La = <<255, 0>>,
     Lb = <<255, 1>>,
     Leaves1 = [leaf:new(1, La, 0, CFG),
@@ -419,7 +428,8 @@ test(16, CFG) ->
     success;
 test(17, CFG) ->
     %prune test.
-    Root0 = 1,
+    %Root0 = 1,
+    Root0 = cfg:empty(CFG),
     La = <<255, 0>>,
     Lb = <<255, 1>>,
     Leaves1 = [leaf:new(1, La, 0, CFG),
