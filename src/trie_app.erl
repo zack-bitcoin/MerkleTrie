@@ -12,7 +12,7 @@ start(normal, []) ->
     ID = trie01,
     KeyLength = 5,%in bytes
     Amount = 1000000,
-    Mode = hd,
+    Mode = ram,
     Meta = 2,
     HashSize = 32,
     trie_sup:start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, "").
