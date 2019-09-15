@@ -1,10 +1,13 @@
 Merkle Trie
 
-the goal of this project is to:
-1) have a merkel tree database on the hard drive
-2) the root hash of a trie is deterministicly derived from the contents, order of insertion/deletion doesn't matter.
-3) we can look up the state at any point in history
-4) append-only immutable datastructure
+This merkel tree database is sparse. That means you can make a proof to prove the non-existance of some data.
+
+This tree can be configured to use either ram or hard drive for storage.
+
+The root hash of a trie is deterministicly derived from the contents, order of insertion/deletion doesn't matter.
+
+This is an order 16 radix tree. every node of the tree has 16 children.
+
 
 Install process:
 
