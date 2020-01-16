@@ -2,15 +2,15 @@
 -behaviour(gen_server).
 -export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,put_batch/3,delete/3,%garbage/2,garbage_leaves/2,
 	 get_all/2,new_trie/2, restore/5,restore/7, 
+	 empty/1,
 	 prune/3, garbage/3]).
 init(CFG) ->
     process_flag(trap_exit, true),
     ID = cfg:id(CFG),
-    Top = case cfg:mode(CFG) of
-	      hd -> stem:put(stem:new_empty(CFG), CFG);%doesn't return 1 when we restart.
-	      ram -> ok
-	  end,
-    {ok, CFG}.
+    Empty = stem:put(stem:new_empty(CFG), CFG),
+    %CFG2 = CFG#cfg{empty = Empty},
+    CFG2 = cfg:set_empty(CFG, Empty),
+    {ok, CFG2}.
 start_link(CFG) -> %keylength, or M is the size outputed by hash:doit(_). 
     gen_server:start_link({global, ids:main(CFG)}, ?MODULE, CFG, []).
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
@@ -64,6 +64,8 @@ handle_call({get, Key, RootPointer}, _From, CFG) ->
 handle_call({get_all, Root}, _From, CFG) ->
     X = get_all_internal(Root, CFG),
     {reply, X, CFG};
+handle_call(empty, _, CFG) ->
+    {reply, cfg:empty(CFG), CFG};
 handle_call({new_trie, RootStem}, _From, CFG) ->
     %Stem = stem:empty_trie(Root, CFG),
     Stem = stem:update_pointers(RootStem, stem:empty_tuple()),
@@ -79,6 +81,8 @@ cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
 new_trie(ID, RootStem) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {new_trie, RootStem}).
+empty(ID) when is_atom(ID) ->
+    gen_server:call({global, ids:main_id(ID)}, empty).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
 root_hash(ID, RootPointer) when (is_atom(ID) and is_integer(RootPointer))->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).

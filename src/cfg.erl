@@ -7,6 +7,7 @@
 	     , meta
 	     , hash_size
 	     , mode
+	     , empty_root
 	     }).
 -opaque cfg() :: #cfg{}.
 -type path() :: pos_integer().
@@ -15,6 +16,13 @@
 -type meta() :: non_neg_integer().
 -type hash_size() :: pos_integer().
 %-spec new(path(), value(), id(), meta(), hash_size()) -> cfg().
+empty(X) when is_record(X, cfg) -> 
+    X#cfg.empty_root;
+empty(X) ->
+    io:fwrite(X),
+    1=2,
+    ok.
+set_empty(X, E) -> X#cfg{empty_root = E}.
 new(P, V, ID, M, H, X) -> #cfg{path = P, value = V, 
 			       id = ID, meta = M,
 			       hash_size = H , mode = X}.
