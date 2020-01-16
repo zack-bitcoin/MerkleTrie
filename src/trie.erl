@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -export([start_link/1,code_change/3,handle_call/3,handle_cast/2,handle_info/2,init/1,terminate/2, root_hash/2,cfg/1,get/3,put/5,put_batch/3,delete/3,%garbage/2,garbage_leaves/2,
 	 get_all/2,new_trie/2, restore/5,restore/7, 
-	 empty/1,
+	 empty/1, quick_save/1,
 	 prune/3, garbage/3]).
 init(CFG) ->
     process_flag(trap_exit, true),
@@ -21,6 +21,12 @@ terminate(_, CFG) ->
     io:fwrite(" died \n"),
     ok.
 handle_info(_, X) -> {noreply, X}.
+handle_cast(quick_save, CFG) -> 
+    A3 = ids:leaf(CFG),
+    A4 = ids:stem(CFG),
+    dump:quick_save(A3),
+    dump:quick_save(A4),
+    {noreply, CFG};
 handle_cast(_, X) -> {noreply, X}.
 handle_call({garbage, NewRoot, OldRoot}, _From, CFG) ->%prune new
     X = prune:garbage(NewRoot, OldRoot, CFG),
@@ -81,6 +87,8 @@ cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
 new_trie(ID, RootStem) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, {new_trie, RootStem}).
+quick_save(ID) ->
+    gen_server:cast({global, ids:main_id(ID)}, quick_save).
 empty(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, empty).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
