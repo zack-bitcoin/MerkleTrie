@@ -452,6 +452,10 @@ test(17, CFG) ->
     io:fwrite(packer:pack(element(2, trie:get(1, Old, trie01)))),
     Final = trie:put_batch(Leaves3, Old, trie01),
     io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
+    io:fwrite("\n"),
+    io:fwrite("final pointer "),
+    io:fwrite(integer_to_list(Final)),
+    io:fwrite("\n"),
     %make sure we can still look up stuff from New.
     success.
     
