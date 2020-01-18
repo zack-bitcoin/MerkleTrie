@@ -25,8 +25,8 @@ terminate(_, CFG) ->
     ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast({clean_ets, Pointer}, CFG) -> 
-    A3 = ids:leaf(CFG),
-    A4 = ids:stem(CFG),
+    %A3 = ids:leaf(CFG),
+    %A4 = ids:stem(CFG),
     LID = ids:leaf(CFG),
     SID = ids:stem(CFG),
     TempLID = list_to_atom(atom_to_list(LID) ++ "_temp"),
@@ -201,7 +201,6 @@ clean_ets_internal(Pointer, CFG, SID, LID) ->
     ets:insert(SID, {Pointer, SS}),
     stem:hash(S, CFG).
    
-%TODO would be nice if clean_ets_internal2 also checked that the tree is a valid cryptographic merkel tree. 
 clean_ets_internal2([], [], _, _, _, _) -> [];
 clean_ets_internal2([Pointer|PT], [Type|TT], [Hash|HT], CFG, SID, LID) -> 
     case Type of
