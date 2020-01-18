@@ -32,13 +32,13 @@ handle_cast(reload_ets, CFG) ->
     Empty = stem:put(stem:new_empty(CFG), CFG),
     CFG2 = cfg:set_empty(CFG, Empty),
     {noreply, CFG2};
-handle_cast(quick_save, CFG) -> 
+handle_cast(_, X) -> {noreply, X}.
+handle_call(quick_save, _, CFG) -> 
     A3 = ids:leaf(CFG),
     A4 = ids:stem(CFG),
     dump:quick_save(A3),
     dump:quick_save(A4),
-    {noreply, CFG};
-handle_cast(_, X) -> {noreply, X}.
+    {reply, ok, CFG};
 handle_call({clean_ets, Pointer}, _, CFG) -> 
     %A3 = ids:leaf(CFG),
     %A4 = ids:stem(CFG),
@@ -148,7 +148,7 @@ reload_ets(ID) ->
     %reloads the ram databases from the hard drive copy.
     gen_server:cast({global, ids:main_id(ID)}, reload_ets).
 quick_save(ID) ->
-    gen_server:cast({global, ids:main_id(ID)}, quick_save).
+    gen_server:call({global, ids:main_id(ID)}, quick_save).
 empty(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, empty).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
