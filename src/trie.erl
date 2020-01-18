@@ -24,7 +24,22 @@ terminate(_, CFG) ->
     io:fwrite(" died \n"),
     ok.
 handle_info(_, X) -> {noreply, X}.
-handle_cast({clean_ets, Pointer}, CFG) -> 
+handle_cast(reload_ets, CFG) -> 
+    A3 = ids:leaf(CFG),
+    A4 = ids:stem(CFG),
+    dump:reload_ets(A3),
+    dump:reload_ets(A4),
+    Empty = stem:put(stem:new_empty(CFG), CFG),
+    CFG2 = cfg:set_empty(CFG, Empty),
+    {noreply, CFG2};
+handle_cast(quick_save, CFG) -> 
+    A3 = ids:leaf(CFG),
+    A4 = ids:stem(CFG),
+    dump:quick_save(A3),
+    dump:quick_save(A4),
+    {noreply, CFG};
+handle_cast(_, X) -> {noreply, X}.
+handle_call({clean_ets, Pointer}, _, CFG) -> 
     %A3 = ids:leaf(CFG),
     %A4 = ids:stem(CFG),
     LID = ids:leaf(CFG),
@@ -56,22 +71,7 @@ handle_cast({clean_ets, Pointer}, CFG) ->
     
     Empty = stem:put(stem:new_empty(CFG), CFG),
     CFG2 = cfg:set_empty(CFG, Empty),
-    {noreply, CFG2};
-handle_cast(reload_ets, CFG) -> 
-    A3 = ids:leaf(CFG),
-    A4 = ids:stem(CFG),
-    dump:reload_ets(A3),
-    dump:reload_ets(A4),
-    Empty = stem:put(stem:new_empty(CFG), CFG),
-    CFG2 = cfg:set_empty(CFG, Empty),
-    {noreply, CFG2};
-handle_cast(quick_save, CFG) -> 
-    A3 = ids:leaf(CFG),
-    A4 = ids:stem(CFG),
-    dump:quick_save(A3),
-    dump:quick_save(A4),
-    {noreply, CFG};
-handle_cast(_, X) -> {noreply, X}.
+    {reply, ok, CFG2};
 handle_call({garbage, NewRoot, OldRoot}, _From, CFG) ->%prune new
     X = prune:garbage(NewRoot, OldRoot, CFG),
     {reply, X, CFG};
@@ -142,7 +142,7 @@ new_trie(ID, RootStem) when is_atom(ID) ->
 clean_ets(ID, Pointer) ->
     %deletes everything from the merkel tree database, except for what can be proved from this single state root.
     %used for loading a checkpoint.
-    gen_server:cast({global, ids:main_id(ID)}, {clean_ets, Pointer}).
+    gen_server:call({global, ids:main_id(ID)}, {clean_ets, Pointer}).
     
 reload_ets(ID) ->
     %reloads the ram databases from the hard drive copy.
