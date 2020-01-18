@@ -209,6 +209,9 @@ clean_ets_internal2([Pointer|PT], [Type|TT], [Hash|HT], CFG, SID, LID) ->
 	1 -> %another stem
 	    Hash = clean_ets_internal(Pointer, CFG, SID, LID);
 	2 -> %a leaf
+	    io:fwrite("trie clean ets leaf pointer "),
+	    io:fwrite(integer_to_list(Pointer)),
+	    io:fwrite("\n"),
 	    Leaf = leaf:get(Pointer, CFG),
 	    Hash = leaf:hash(Leaf, CFG),
 	    SL = leaf:serialize(Leaf, CFG),
