@@ -1,7 +1,26 @@
 -module(verify).
--export([proof/4]).
+-export([proof/4, update_proof/3]).
 
 -spec proof(stem:hash(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
+
+update_proof(L, Proof, CFG) ->
+    LP = leaf:path(L, CFG),
+    %take the slice of the path we will use, and reverse it.
+    N = length(Proof),
+    {LP2, _} = lists:split(N, LP),
+    LP3 = lists:reverse(LP2),
+    LH = leaf:hash(L, CFG),
+    Proof2 = update_internal(LP3, LH, Proof, CFG),
+    Proof2.
+
+update_internal(_, _, [], _) -> [];
+update_internal([<<N:4>> | M], LH, Proof, CFG) ->
+    P1 = hd(Proof),
+    %Hash = element(N+1, P1),
+    P2 = setelement(N+1, P1, LH),
+    NH = stem:hash(P2, CFG),
+    [P2|update_internal(M, NH, tl(Proof), CFG)].
+
 proof(RootHash, L, Proof, CFG) ->
     [H|F] = lists:reverse(Proof),
     %[H|F] = Proof,

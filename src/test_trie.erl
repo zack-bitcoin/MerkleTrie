@@ -6,9 +6,9 @@
 test() ->
     CFG = trie:cfg(?ID),
     %V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
-    V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17],
+    V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17,18],
     %V = [5, 6, 12, 13],
-    %V = [9],
+    %V = [18],
     test_helper(V, CFG).
 test_helper([], _) -> success;
 test_helper([N|T], CFG) -> 
@@ -457,7 +457,22 @@ test(17, CFG) ->
     io:fwrite(integer_to_list(Final)),
     io:fwrite("\n"),
     %make sure we can still look up stuff from New.
+    success;
+test(18, CFG) ->
+    %Proof2 = verify:update_proof(Leaf2, Proof, CFG),
+    Loc = 1,
+    Times = 1000,
+    NewLoc = test3a(Times, Times, Loc),
+    %test3b(Times, NewLoc, CFG),
+    {Hash, Value, Proof} = trie:get(5, NewLoc, ?ID),
+    Leaf = leaf:new(5, <<0, 1>>, 0, CFG),
+    Proof2 = verify:update_proof(Leaf, Proof, CFG),
+    NewRoot = stem:hash(hd(lists:reverse(Proof2)), CFG),
+    %io:fwrite(packer:pack({Proof2, Proof})),
+    true = verify:proof(NewRoot, Leaf, Proof2, CFG),
     success.
+    
+    
     
     
 restore(ID, FilledTree, NewTree) ->    
