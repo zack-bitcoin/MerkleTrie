@@ -1,5 +1,5 @@
 -module(verify).
--export([proof/4, update_proof/3]).
+-export([proof/4, update_proof/3, update_proofs/2]).
 
 -spec proof(stem:hash(), leaf:leaf(), get:proof(), cfg:cfg()) -> boolean().
 
@@ -20,6 +20,44 @@ update_internal([<<N:4>> | M], LH, Proof, CFG) ->
     P2 = setelement(N+1, P1, LH),
     NH = stem:hash(P2, CFG),
     [P2|update_internal(M, NH, tl(Proof), CFG)].
+
+update_proofs(X, CFG) ->
+    update_proofs(X, CFG, dict:new(), []).
+update_proofs([], _, D, L) ->
+    L2 = lists:reverse(L),
+    lists:map(fun(X) ->%do this to every list in the list of lists.
+		      lists:map(fun(Y) ->%update every element of the list
+					merge_find_helper(Y, D)
+
+				end, X)
+	      end, L2);
+update_proofs([{Leaf, Proof}|T], CFG, D, L) ->
+    %use D to remember which stems have been updated already.
+    LP = leaf:path(Leaf, CFG),
+    N = length(Proof),
+    {LP2, _} = lists:split(N, LP),
+    LP3 = lists:reverse(LP2),
+    LH = leaf:hash(Leaf, CFG),
+    {D2, NewProof} = update_proofs2(LP3, LH, Proof, D, CFG, []),
+    update_proofs(T, CFG, D2, [NewProof|L]).
+    
+merge_find_helper(P, D) ->
+    case dict:find(P, D) of
+	error -> P;
+	{ok, P2} ->
+	    merge_find_helper(P2, D)
+    end.
+
+update_proofs2(_, _, [], D, _, Proof) -> 
+    {D, lists:reverse(Proof)};
+update_proofs2([<<N:4>>|M], LH, Proof, D, CFG, Proof2) -> 
+    P1 = hd(Proof),
+    P = merge_find_helper(P1, D),
+    P2 = setelement(N+1, P, LH),
+    D2 = dict:store(P1, P2, D),
+    D3 = dict:store(P, P2, D),
+    NH = stem:hash(P2, CFG),
+    update_proofs2(M, NH, tl(Proof), D3, CFG, [P2|Proof2]).
 
 proof(RootHash, L, Proof, CFG) ->
     [H|F] = lists:reverse(Proof),
