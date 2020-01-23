@@ -6,7 +6,8 @@
 	 quick_save/1, %the copy of the ets currently in ram, it uses this to update the copy stored on the hard drive.
 	 reload_ets/1, %grabs the copy of the ets from the hard drive, loads it into ram
 	 clean_ets/2, %deletes everything from the merkel tree database, except for what can be proved from this single state root.
-	 prune/3, garbage/3]).
+	 %prune/3, 
+	 garbage/3]).
 init(CFG) ->
     process_flag(trap_exit, true),
     %ID = cfg:id(CFG),
@@ -175,8 +176,8 @@ get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root})
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
 garbage(NewRoot, OldRoot, ID) ->%removes new
     gen_server:call({global, ids:main_id(ID)}, {garbage, NewRoot, OldRoot}).
-prune(OldRoot, NewRoot, ID) ->%removes old
-    gen_server:call({global, ids:main_id(ID)}, {prune, OldRoot, NewRoot}).
+%prune(OldRoot, NewRoot, ID) ->%removes old
+%    gen_server:call({global, ids:main_id(ID)}, {prune, OldRoot, NewRoot}).
 
 get_all_internal(Root, CFG) ->
     S = stem:get(Root, CFG),

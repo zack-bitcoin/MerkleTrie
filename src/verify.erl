@@ -42,7 +42,7 @@ update_proofs([{Leaf, Proof}|T], CFG, D, L) ->
     update_proofs(T, CFG, D2, [NewProof|L]).
     
 merge_find_helper(P, D) ->
-    io:fwrite("merge find helper\n"),
+    %io:fwrite("merge find helper\n"),
     case dict:find(P, D) of
 	error -> P;
 	{ok, error} -> 1=2;

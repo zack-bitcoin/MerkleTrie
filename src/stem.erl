@@ -7,7 +7,8 @@
 	 update_pointers/2, empty_tuple/0,
 	 make/3, make/2, update/3, onify2/2,
 	 put_batch/2, serialize/2,
-	 empty_trie/2]).
+	 empty_trie/2,
+	 deserialize/2]).
 -export_type([stem/0,types/0,empty_t/0,stem_t/0,leaf_t/0,pointers/0,empty_p/0,hashes/0,hash/0,empty_hash/0,stem_p/0,nibble/0]).
 -record(stem, { types = empty_tuple() :: types()
 	      , pointers = empty_tuple() :: pointers()

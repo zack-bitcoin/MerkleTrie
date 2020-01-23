@@ -1,5 +1,6 @@
 -module(store).
--export([store/3, restore/5, get_branch/5, store_branch/6, batch/3]).
+-export([store/3, restore/5, get_branch/5, store_branch/6, batch/3,
+	sort_by_path/2, compare_keys/2, store_batch_helper_ram/6, path_match/2, extra_stem/2, max_list/1, batch2_ram/5]).
 -export_type([branch/0, nonempty_branch/0]).
 
 -type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
@@ -81,7 +82,7 @@ batch(Leaves, Root, CFG) ->
 				 length(B)
 			 end, BranchData)),
 	    StemTop = dump:highest(ids:stem(CFG)),
-{FHash, FLoc, SToStore} = batch2_ram(BStart, BranchData, CFG, StemTop, []),
+	    {FHash, FLoc, SToStore} = batch2_ram(BStart, BranchData, CFG, StemTop, []),
 	        %io:fwrite("store batch ram mode 2\n"),
 	    stem:put_batch(SToStore, CFG),%store stems
 	        %io:fwrite("store batch ram mode 3\n"),
@@ -238,7 +239,6 @@ store_batch_helper_ram([H|T], CFG, BD, Root, Pointer, L) ->
 		  {_, _, _} -> store_batch_helper_ram(T, CFG, BD, Root, Pointer, L); %if you are deleting something that doesn't exist, then you don't have to do anything.
 		  Branch0 ->
 		          X = cfg:hash_size(CFG)*8,
-		          EmptyHash = <<0:X>>,
 		          store_batch_helper_ram(T, CFG, [{0, <<0:X>>, Path, Branch0, 0}|BD], Root, Pointer, L)
 			      end;
        _ ->
@@ -269,7 +269,6 @@ store_batch_helper([H|T], CFG, BD, Root) ->
 		{_, _, _} -> store_batch_helper(T, CFG, BD, Root); %if you are deleting something that doesn't exist, then you don't have to do anything.
 		Branch0 ->
 		    X = cfg:hash_size(CFG)*8,
-		    EmptyHash = <<0:X>>,
 		    store_batch_helper(T, CFG, [{0, <<0:X>>, Path, Branch0, 0}|BD], Root)
 	    end;
 	_ ->
@@ -316,7 +315,7 @@ store(Leaf, Root, CFG) ->
 get_branch(Path, N, Parent, Trail, CFG) ->
     %gather the branch as it currently looks.
     M = N+1,
-    <<A:4>> = lists:nth(M, Path), % TODO this could be turned into hd (head)
+    <<A:4>> = lists:nth(M, Path), 
     R = stem:get(Parent, CFG),
     Pointer = stem:pointer(A+1, R),
     RP = [R|Trail],
