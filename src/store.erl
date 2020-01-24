@@ -1,6 +1,6 @@
 -module(store).
 -export([store/3, restore/5, get_branch/5, store_branch/6, batch/3,
-	sort_by_path/2, compare_keys/2, store_batch_helper_ram/6, path_match/2, extra_stem/2, max_list/1, batch2_ram/5]).
+	sort_by_path/2, compare_keys/2, store_batch_helper_ram/6, path_match/2, extra_stem/2, max_list/1, batch2_ram/5, first_n/2, combine_branches/2]).
 -export_type([branch/0, nonempty_branch/0]).
 
 -type branch() :: [stem:stem()]. % first element is most distant from root i.e. closest to leaf (if any)
