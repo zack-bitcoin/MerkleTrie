@@ -102,7 +102,7 @@ handle_call(empty, _, D) ->
 handle_call({new_trie, RootStem}, _From, D) ->
     CFG = mtree:cfg(D#d.m),
     {M, P} = mtree:new_restoration(RootStem, cfg:path(CFG), cfg:value(CFG), cfg:meta(CFG)),
-    {reply, {M, P}, CFG};
+    {reply, {M, P}, D};
 handle_call({root_hash, RootPointer}, _From, D) ->
     H = mtree:root_hash(RootPointer, D#d.m),
     {reply, H, D};
