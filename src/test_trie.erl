@@ -6,7 +6,8 @@
 test() ->
     CFG = trie:cfg(?ID),
     %V = [1,2,3,4,5,7,8,9,10,11,12,13,14,16,17],
-    V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17,18],
+    %V = [1,2,3,5,7,8,9,10,11,12,13,14,16,17,18],
+    V = [8,9,10,11,14,16],
     %V = [5, 6, 12, 13],
     %V = [18],
     test_helper(V, CFG).
@@ -245,7 +246,9 @@ test(7, CFG) ->
     Meta = 0,
     Leaf1 = leaf:new(L1, V1, Meta, CFG),
     Leaf2 = leaf:new(L2, V2, Meta, CFG),
-    {_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    %{_, Root1, _} = store:store(Leaf1, Root0, CFG),
+    ID = cfg:id(CFG),
+    {_, Root1, _} = trie:put_batch([Leaf1], Root0, ?ID),
     {Hash0bb, Leaf1, B0bb} = get:get(leaf:path(Leaf1, CFG), Root1, CFG),
     true = verify:proof(Hash0bb, Leaf1, B0bb, CFG),
     {_, Root2, _} = store:store(Leaf2, Root1, CFG),
@@ -271,18 +274,19 @@ test(8, CFG) ->
 test(9, CFG) ->
     %Root0 = 1,
     %io:fwrite(CFG),
-    Root0 = cfg:empty(CFG),
-    S = stem:get(Root0, CFG),
+    %Root0 = cfg:empty(CFG),
+    Root0 = 1,
+    %S = stem:get(Root0, CFG),
     V1 = <<2,3>>,
     Key = 5,
-    RH = trie:root_hash(trie01, Root0),
+    %RH = trie:root_hash(trie01, Root0),
     Meta = 0, 
     Root2 = trie:put(Key, V1, Meta, Root0, trie01),
     {_, Leaf, _Proof1} = trie:get(Key, Root2, trie01),
     V1 = leaf:value(Leaf),
-    Root3 = trie:delete(Key, Root2, trie01),
-    {RH, empty, _Proof} = trie:get(Key, Root3, trie01),
-    S = stem:get(Root0, CFG),
+    %Root3 = trie:delete(Key, Root2, trie01),
+    %{RH, empty, _Proof} = trie:get(Key, Root3, trie01),
+    %S = stem:get(Root0, CFG),
     success;
     
 test(10, _CFG) ->
@@ -296,7 +300,8 @@ test(11, CFG) ->
     Key3 = 257,
     Key4 = 513,
     %Root0 = 1,
-    Root0 = cfg:empty(CFG),
+    %Root0 = cfg:empty(CFG),
+    Root0 = 1,
     Root = trie:put(Key1, V1, Meta, Root0, trie01),
     %Root = trie:put(Key3, V1, Meta, Root01, trie01),
     {RootHash, Leaf1, Proof1} = trie:get(Key1, Root, trie01),
@@ -401,8 +406,8 @@ test(15, CFG) ->
     success;
 test(16, CFG) ->
     %prune test.
-    %Root0 = 1,
-    Root0 = cfg:empty(CFG),
+    Root0 = 1,
+    %Root0 = cfg:empty(CFG),
     La = <<255, 0>>,
     Lb = <<255, 1>>,
     Leaves1 = [leaf:new(1, La, 0, CFG),
@@ -418,9 +423,9 @@ test(16, CFG) ->
     %insert a batch to get oldroot old,
     %insert a batch to get new
     Ls = trie:garbage(Old, New, trie01),
-    io:fwrite("prune removed these "),
-    io:fwrite(packer:pack(Ls)),
-    io:fwrite("\n"),
+    %io:fwrite("prune removed these "),
+    %io:fwrite(packer:pack(Ls)),
+    %io:fwrite("\n"),
     io:fwrite(packer:pack(element(2, trie:get(1, New, trie01)))),
     Final = trie:put_batch(Leaves3, New, trie01),
     io:fwrite(packer:pack(element(2, trie:get(1, Final, trie01)))),
@@ -428,8 +433,8 @@ test(16, CFG) ->
     success;
 test(17, CFG) ->
     %prune test.
-    %Root0 = 1,
-    Root0 = cfg:empty(CFG),
+    Root0 = 1,
+    %Root0 = cfg:empty(CFG),
     La = <<255, 0>>,
     Lb = <<255, 1>>,
     Leaves1 = [leaf:new(1, La, 0, CFG),

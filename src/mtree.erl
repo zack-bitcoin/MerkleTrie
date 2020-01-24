@@ -1,8 +1,19 @@
 -module(mtree).
--export([new_empty/3, new_restoration/4, save_to_file/2, load_from_file/1, clean/2, garbage/3, restore/5, get/3, get_all/2, root_hash/2,
+-export([new_empty/3, 
+	 new_restoration/4, 
+	 save_to_file/2, 
+	 load_from_file/1, 
+	 clean/2, 
+	 garbage/3, 
+	 restore/5, 
+	 store_batch/3,
+	 get/3, 
+	 get_all/2, 
+	 root_hash/2,
+	 cfg/1,
 	 test/0]).
-
 -record(mt, {cfg, ets, top}).
+	 
 -define(ID, unnamed).
 
 %%%%%
@@ -98,6 +109,7 @@ new_restoration(RootStem, KeyLength, Size, Meta) ->
     M = new(KeyLength, Size, Meta),
     element_write(stem, RootStem, M).
 top(M) -> M#mt.top.
+cfg(M) -> M#mt.cfg.
 loc2rest(Loc) ->
     {F, _} = lists:split(length(Loc) - 3, Loc),
     Loc2 = F ++ "_rest.db".
@@ -232,7 +244,7 @@ get_branch(Path, N, Parent, Trail, Mt) ->
     if
 	ST == 0 -> RP;
 	Pointer == 0 -> RP;
-	ST == 1 -> get_branch(Path, M, Pointer, RP, CFG);
+	ST == 1 -> get_branch(Path, M, Pointer, RP, Mt);
 	ST == 2 ->
 	    Leaf = element_get(leaf, Pointer, Mt),
 	    case leaf:path(Leaf, CFG) of
@@ -328,7 +340,7 @@ get2([<<N:4>> | Path], Stem, Proof, M) ->
 	PN == 0 -> {unknown, Proof};
 	NextType == 1 -> %another stem
 	    Next = element_get(stem, PN, M),
-	    get2(Path, Next, [stem:hashes(Next)|Proof], CFG);
+	    get2(Path, Next, [stem:hashes(Next)|Proof], M);
 	NextType == 2 -> %leaf
 	    Leaf2 = element_get(leaf, PN, M),
 	    LPath = leaf:path(Leaf2, CFG),
@@ -347,7 +359,7 @@ get_all(Pointer, M) ->
     S = element_get(stem, Pointer, M),
     P = tuple_to_list(stem:pointers(S)),
     T = tuple_to_list(stem:types(S)),
-    CFG = M#mt.cfg,
+    %CFG = M#mt.cfg,
     get_all_internal2(P, T, M).
 get_all_internal2([], [], _) -> [];
 get_all_internal2([A|AT], [T|TT], M) -> 
@@ -375,6 +387,8 @@ test() ->
     Leaf2 = leaf:new(2, V2, Meta, CFG),
     Leaves = [Leaf1, Leaf2],
     {Root, M2} = store_batch(Leaves, 1, M),
+    _ = store_batch([leaf:new(3, V1, Meta, CFG),
+		     leaf:new(1, V2, Meta, CFG)], Root, M2),
     Path = leaf:path(Leaf1, CFG),
     Path2 = leaf:path(Leaf2, CFG),
     {Hash1, Leaf1, Proof} = get(Path, Root, M2),
