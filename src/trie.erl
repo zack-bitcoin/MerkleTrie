@@ -26,9 +26,11 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, D) -> 
     mtree:save_to_file(D#d.m, D#d.l),
     io:fwrite("tree "), 
-    CFG = mtree:cfg(D#d.m),
-    ID = cfg:id(CFG),
-    io:fwrite(ID),
+    io:fwrite(D#d.l),
+    io:fwrite(" "),
+    %CFG = mtree:cfg(D#d.m),
+    %ID = cfg:id(CFG),
+    %io:fwrite(ID),
     io:fwrite(" died \n"),
     ok.
 handle_info(_, X) -> {noreply, X}.
