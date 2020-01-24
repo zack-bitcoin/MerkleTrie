@@ -10,10 +10,18 @@
 	 clean_ets/2, %deletes everything from the merkel tree database, except for what can be proved from this single state root.
 	 garbage/3]).
 -record(d, {m, l, empty}).
-init({CFG, Location}) ->
+init({CFG, Loc}) ->
     process_flag(trap_exit, true),
-    M = new_m(CFG),
-    D = #d{m = M, l = Location, empty = 1},
+    D = case db:read(mtree:loc2rest(Loc)) of
+	    "" ->
+		M = new_m(CFG),
+		#d{m = M, l = Loc, empty = 1};
+	    Y ->
+		M = binary_to_term(Y),
+		{ok, P} = ets:file2tab(Loc),
+		M2 = mtree:set_ets(M, P),
+		#d{m = M2, l = Loc, empty = 1}
+	end,
     {ok, D}.
 new_m(CFG) ->
     M = mtree:new_empty(cfg:path(CFG), 

@@ -7,10 +7,12 @@
 	 garbage/3, 
 	 restore/5, 
 	 store_batch/3,
+	 loc2rest/1,
 	 get/3, 
 	 get_all/2, 
 	 root_hash/2,
 	 cfg/1,
+	 set_ets/2,
 	 test/0]).
 -record(mt, {cfg, ets, top}).
 	 
@@ -110,14 +112,16 @@ new_restoration(RootStem, KeyLength, Size, Meta) ->
     element_write(stem, RootStem, M).
 top(M) -> M#mt.top.
 cfg(M) -> M#mt.cfg.
+set_ets(M, ETS) ->
+    M#mt{ets = ETS}.
 loc2rest(Loc) ->
     {F, _} = lists:split(length(Loc) - 3, Loc),
     Loc2 = F ++ "_rest.db".
 save_to_file(M, Loc) ->
     Loc2 = loc2rest(Loc),
-    io:fwrite("saving in location "),
-    io:fwrite(Loc2),
-    io:fwrite("\n"),
+    %io:fwrite("saving in location "),
+    %io:fwrite(Loc2),
+    %io:fwrite("\n"),
     db:save(Loc2, term_to_binary(M#mt{ets = 0})),
     ets:tab2file(M#mt.ets, Loc, [{sync, true}]).
 load_from_file(Loc) ->
