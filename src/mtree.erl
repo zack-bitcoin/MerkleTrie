@@ -115,6 +115,9 @@ loc2rest(Loc) ->
     Loc2 = F ++ "_rest.db".
 save_to_file(M, Loc) ->
     Loc2 = loc2rest(Loc),
+    io:fwrite("saving in location "),
+    io:fwrite(Loc2),
+    io:fwrite("\n"),
     db:save(Loc2, term_to_binary(M#mt{ets = 0})),
     ets:tab2file(M#mt.ets, Loc, [{sync, true}]).
 load_from_file(Loc) ->

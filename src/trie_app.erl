@@ -15,7 +15,7 @@ start(normal, []) ->
     Mode = ram,
     Meta = 2,
     HashSize = 32,
-    trie_sup:start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, "temp.db").
+    trie_sup:start_link(KeyLength, Size, ID, Amount, Meta, HashSize, Mode, "").
 
 stop(_State) ->
     ok.

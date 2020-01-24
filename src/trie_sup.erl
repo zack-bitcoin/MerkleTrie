@@ -24,15 +24,17 @@ init([CFG, Amount, Mode, Location]) ->
     %HashSize = cfg:hash_size(CFG),
     %Size = cfg:value(CFG)+cfg:meta(CFG),
     ID = cfg:id(CFG),
-    %IDS = atom_to_list(ID),
+    IDS = atom_to_list(ID),
     %A2 = list_to_atom(IDS++"_bits"),
     %A3 = ids:leaf(CFG),
     %A4 = ids:stem(CFG),
     A5 = ids:main(CFG),
     %L2 =Location ++ "data/" ++ IDS ++ "_trie_bits.db",
+    Loc2 = Location ++ "data/" ++ IDS ++ ".db",
+
     Children = [%{A3, {dump_sup, start_link, [A3, KeyLength+Size, Amount, Mode, Location]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A4, {dump_sup, start_link, [A4, 4+(16*(HashSize + KeyLength)), Amount, Mode, Location]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A2, {bits, start_link, [A2, L2, Amount]}, permanent, 5000, worker, [bits]},
-		{A5, {trie, start_link, [CFG, Location]}, permanent, 5000, worker, [trie]}
+		{A5, {trie, start_link, [CFG, Loc2]}, permanent, 5000, worker, [trie]}
 	       ],
     {ok, { {one_for_one, 5, 10}, Children} }.
