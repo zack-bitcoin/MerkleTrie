@@ -33,6 +33,6 @@ init([CFG, Amount, Mode, Location]) ->
     Children = [%{A3, {dump_sup, start_link, [A3, KeyLength+Size, Amount, Mode, Location]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A4, {dump_sup, start_link, [A4, 4+(16*(HashSize + KeyLength)), Amount, Mode, Location]}, permanent, 5000, supervisor, [dump_sup]},
 		%{A2, {bits, start_link, [A2, L2, Amount]}, permanent, 5000, worker, [bits]},
-		{ID, {trie, start_link, [CFG, Location]}, permanent, 5000, worker, [trie]}
+		{A5, {trie, start_link, [CFG, Location]}, permanent, 5000, worker, [trie]}
 	       ],
     {ok, { {one_for_one, 5, 10}, Children} }.
