@@ -171,32 +171,32 @@ garbage(Trash, Keep, M) -> %returns {M, List}
     %trash and keep are pointers to consecutive root stems in M.
     TStem = element_get(stem, Trash, M),
     KStem = element_get(stem, Keep, M),
-    M2 = if
-	     Trash == Keep -> M;
-	     true -> 
-		 ets_delete(M, Trash)
-	 end,
-    garbage2(M2, TStem, KStem, 1).
-garbage2(_,_,_,17) -> ok;
-garbage2(M, S1, S2, N) -> 
+    if
+	Trash == Keep -> ok;
+	true -> ets_delete(M, Trash)
+    end,
+    garbage2(M, TStem, KStem, 1, []).
+garbage2(_,_,_,17,R) -> R;
+garbage2(M, S1, S2, N, R) -> 
     T1 = stem:type(N, S1),
     T2 = stem:type(N, S2),
     H1 = element(N, stem:hashes(S1)),
     H2 = element(N, stem:hashes(S2)),
     P1 = stem:pointer(N, S1),
     P2 = stem:pointer(N, S2),
-    M2 = if
+    R2 = if
 	     (T1 == 0) or (H1 == H2) -> 
-		 M;%nothing to clean
+		 [];%nothing to clean
 	     true ->
 		 
 		 case {T1, T2} of%{trash, keep}
 		     {1, 1} -> garbage(P1, P2, M);
 		     {1, _} -> garbage(P1, 0, M);
-		     {2, _} -> ets_delete(M, P1)
+		     {2, _} -> ets_delete(M, P1),
+			       [{P1, P2}]
 		 end
 	 end,
-    garbage2(M2, S1, S2, N+1).
+    garbage2(M, S1, S2, N+1, R ++ R2).
 restore(Leaf, Hash, Proof, Pointer, M) ->	    
     CFG = M#mt.cfg,
     HSE = cfg:hash_size(CFG) * 8,

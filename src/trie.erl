@@ -34,8 +34,8 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, D) -> 
     mtree:save_to_file(D#d.m, D#d.l),
     io:fwrite("tree "), 
-    io:fwrite(D#d.l),
-    io:fwrite(" "),
+    %io:fwrite(D#d.l),
+    %io:fwrite(" "),
     %CFG = mtree:cfg(D#d.m),
     %ID = cfg:id(CFG),
     %io:fwrite(ID),
@@ -58,8 +58,8 @@ handle_call({clean_ets, Pointer}, _, D) ->
     {reply, ok, D2};
 handle_call({garbage, NewRoot, OldRoot}, _From, D) ->%prune new
     %deletes newroot
-    mtree:garbage(NewRoot, OldRoot, D#d.m),
-    {reply, ok, D};
+    X = mtree:garbage(NewRoot, OldRoot, D#d.m),
+    {reply, X, D};
 handle_call({restore, Key, Value, Meta, Hash, Proof, Root}, _From, D) -> 
     valid_key(Key),
     M = D#d.m,
