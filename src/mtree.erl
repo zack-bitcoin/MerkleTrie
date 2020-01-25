@@ -14,6 +14,7 @@
 	 root_hash/2,
 	 cfg/1,
 	 set_ets/2,
+	 element_get/3,
 	 test/0]).
 -record(mt, {cfg, ets, top}).
 	 
