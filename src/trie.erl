@@ -43,8 +43,9 @@ terminate(_, D) ->
     ok.
 handle_info(_, X) -> {noreply, X}.
 handle_cast(reload_ets, D) -> 
-    CFG = mtree:cfg(D#d.m),
-    M = new_m(CFG),
+    M = mtree:load_from_file(D#d.l),
+    %CFG = mtree:cfg(D#d.m),
+    %M = new_m(CFG),
     D2 = D#d{m = M},
     {noreply, D2};
 handle_cast(_, X) -> {noreply, X}.
