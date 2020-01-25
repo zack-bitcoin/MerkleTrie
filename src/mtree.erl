@@ -228,12 +228,12 @@ restore(Leaf, Hash, Proof, Pointer, M) ->
 		{P, leaf:hash(Leaf, CFG), 2, Proof, M2}
 	end,
     ReversePath = lists:reverse(store:first_n(length(Proof2), Path)), 
-    Branch = proof2branch(Proof2, Type, LPointer, LH, 
+    {M4, Branch} = proof2branch(Proof2, Type, LPointer, LH, 
 			  ReversePath, M3, []),
-    Branch2 = get_branch(Path, 0, Pointer, [], M3),%branch2 proves everything else.
+    Branch2 = get_branch(Path, 0, Pointer, [], M4),%branch2 proves everything else.
     Branch3 = store:combine_branches(Branch, Branch2),
-    store_branch(Branch3, Path, Type, LPointer, LH, M3).
-store_branch([], Path, _, Pointer, _, M) ->
+    store_branch(Branch3, Path, Type, LPointer, LH, M4).
+store_branch([], Path, _, Pointer, _, M) ->%first element is a list, not a leaf.
     %Instead of getting the thing, we can build it up while doing store.
     {Hash, _, Proof} = get(Path, Pointer, M),
     {Hash, Pointer, Proof, M};
@@ -413,6 +413,8 @@ test() ->
 		     RootStem,
 		     5, 2, 0),
     true = verify:proof(Hash1, Leaf1, Proof, CFG),
+    %io:fwrite({Leaf1, Hash1, Proof, Root3, M3}),
+    %{leaf, hash, [{16 hashes}|...], 1, M}
     {Hash1, _, Proof, M4} = restore(Leaf1, Hash1, Proof, Root3, M3),
     {Hash1, Leaf1, Proof} = get(Path, Root3, M4),
 
