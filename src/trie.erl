@@ -5,6 +5,7 @@
 	 put/5,put_batch/3,delete/3,%garbage/2,garbage_leaves/2,
 	 get_all/2,new_trie/2, restore/5,restore/7, 
 	 empty/1, 
+	 stem_get/2,
 	 quick_save/1, %the copy of the ets currently in ram, it uses this to update the copy stored on the hard drive.
 	 reload_ets/1, %grabs the copy of the ets from the hard drive, loads it into ram
 	 clean_ets/2, %deletes everything from the merkel tree database, except for what can be proved from this single state root.
@@ -104,6 +105,9 @@ handle_call({new_trie, RootStem}, _From, D) ->
     CFG = mtree:cfg(D#d.m),
     {M, P} = mtree:new_restoration(RootStem, cfg:path(CFG), cfg:value(CFG), cfg:meta(CFG)),
     {reply, {M, P}, D};
+handle_call({stem_get, RootPointer}, _From, D) ->
+    S = mtree:element_get(stem, RootPointer, D#d.m),
+    {reply, S, D};
 handle_call({root_hash, RootPointer}, _From, D) ->
     H = mtree:root_hash(RootPointer, D#d.m),
     {reply, H, D};
@@ -127,6 +131,8 @@ quick_save(ID) ->
     gen_server:call({global, ids:main_id(ID)}, quick_save).
 empty(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, empty).
+stem_get(ID, RootPointer) when (is_atom(ID) and is_integer(RootPointer))->
+    gen_server:call({global, ids:main_id(ID)}, {stem_get, RootPointer}).
 -spec root_hash(atom(), stem:stem_p()) -> stem:hash().
 root_hash(ID, RootPointer) when (is_atom(ID) and is_integer(RootPointer))->
     gen_server:call({global, ids:main_id(ID)}, {root_hash, RootPointer}).

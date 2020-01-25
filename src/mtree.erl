@@ -1,6 +1,7 @@
 -module(mtree).
 -export([new_empty/3, 
 	 new_restoration/4, 
+	 new_restoration/2, 
 	 save_to_file/2, 
 	 load_from_file/1, 
 	 clean/2, 
@@ -110,6 +111,11 @@ new_empty(KeyLength, Size, Meta) ->
 new_restoration(RootStem, KeyLength, Size, Meta) ->
     M = new(KeyLength, Size, Meta),
     element_write(stem, RootStem, M).
+new_restoration(RootStem, CFG) ->
+    new_restoration(RootStem, 
+		    cfg:path(CFG), 
+		    cfg:value(CFG), 
+		    cfg:meta(CFG)).
 top(M) -> M#mt.top.
 cfg(M) -> M#mt.cfg.
 set_ets(M, ETS) ->
