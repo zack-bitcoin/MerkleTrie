@@ -173,7 +173,21 @@ clean3([Pointer|PT],
 		 NewM
 	 end,
     clean3(PT, TT, HT, M, M3, CFG).
-
+delete(ID, Root, M) ->
+    CFG = M#mt.cfg,
+    Path = leaf:path_maker(ID, CFG),
+%already no leaf with the specified path
+    case get_branch(Path, 0, Root, [], M) of
+	{_, _, _} -> 
+	    ok,
+	    {Root, M};
+	Branch ->
+	    X = cfg:hash_size(CFG)*8,
+	    EmptyHash = <<0:X>>,
+	    {_, NewRoot, _, M2} = store_branch(Branch, Path, 0, 0, EmptyHash, M),
+	    {NewRoot, M2}
+    end.
+	    
 garbage(Trash, Keep, M) -> %returns {M, List}
     %trash and keep are pointers to consecutive root stems in M.
     TStem = element_get(stem, Trash, M),
@@ -434,5 +448,7 @@ test() ->
 
     M7 = clean(M5, Root2),
     LFC = get(leaf:path(Leaf2, CFG), Root2, M7),
+
+    {Root4, M8} = delete(leaf:key(Leaf1), Root2, M7),
 
     success.

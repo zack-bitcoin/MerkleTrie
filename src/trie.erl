@@ -70,6 +70,10 @@ handle_call({restore, Key, Value, Meta, Hash, Proof, Root}, _From, D) ->
     {Hash, NewRoot, _Proof, M2} = mtree:restore(Leaf, Hash, Proof, Root, M),
     D2 = D#d{m = M2},
     {reply, NewRoot, D2};
+handle_call({delete, Key, Root}, _, D) ->
+    %NewRoot = delete:delete(Key, Root, CFG),
+    {NewRoot, M2} = mtree:delete(Key, Root, D#d.m),
+    {reply, NewRoot, D#d{m = M2}};
 handle_call({put, Key, Value, Meta, Root}, _From, D) -> 
     valid_key(Key),
     CFG = mtree:cfg(D#d.m),
