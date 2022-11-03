@@ -11,9 +11,18 @@
 	 clean_ets/2, %deletes everything from the merkel tree database, except for what can be proved from this single state root.
 	 garbage/3]).
 -record(d, {m, l, empty}).
+db_read(F) ->
+    case file:read_file(F) of
+        {ok, <<>>} -> <<>>;
+        {ok, Out} -> binary_to_term(Out);
+        {error, enoent} -> 
+            %io:fwrite("file does not exist\n"),
+            "";
+        {error, Reason} -> Reason
+    end.
 init({CFG, Loc}) ->
     process_flag(trap_exit, true),
-    D = case db:read(mtree:loc2rest(Loc)) of
+    D = case db_read(mtree:loc2rest(Loc)) of
 	    "" ->
 		M = new_m(CFG),
 		#d{m = M, l = Loc, empty = 1};
