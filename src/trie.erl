@@ -43,22 +43,22 @@ start_link(CFG, Location) -> %keylength, or M is the size outputed by hash:doit(
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 terminate(_, D) -> 
     mtree:save_to_file(D#d.m, D#d.l),
-    io:fwrite("tree "), 
+    %io:fwrite("tree "), 
     %io:fwrite(D#d.l),
     %io:fwrite(" "),
     %CFG = mtree:cfg(D#d.m),
     %ID = cfg:id(CFG),
     %io:fwrite(ID),
-    io:fwrite(" died \n"),
+    io:fwrite("trie died \n"),
     ok.
 handle_info(_, X) -> {noreply, X}.
-handle_cast(reload_ets, D) -> 
+handle_cast(_, X) -> {noreply, X}.
+handle_call(reload_ets, _, D) -> 
     M = mtree:load_from_file(D#d.l),
     %CFG = mtree:cfg(D#d.m),
     %M = new_m(CFG),
     D2 = D#d{m = M},
-    {noreply, D2};
-handle_cast(_, X) -> {noreply, X}.
+    {reply, ok, D2};
 handle_call(quick_save, _, D) -> 
     mtree:save_to_file(D#d.m, D#d.l),
     {reply, ok, D};
@@ -139,7 +139,7 @@ clean_ets(ID, Pointer) ->
     
 reload_ets(ID) ->
     %reloads the ram databases from the hard drive copy.
-    gen_server:cast({global, ids:main_id(ID)}, reload_ets).
+    gen_server:call({global, ids:main_id(ID)}, reload_ets).
 quick_save(ID) ->
     gen_server:call({global, ids:main_id(ID)}, quick_save).
 empty(ID) when is_atom(ID) ->
