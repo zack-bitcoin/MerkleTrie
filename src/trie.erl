@@ -9,7 +9,8 @@
 	 quick_save/1, %the copy of the ets currently in ram, it uses this to update the copy stored on the hard drive.
 	 reload_ets/1, %grabs the copy of the ets from the hard drive, loads it into ram
 	 clean_ets/2, %deletes everything from the merkel tree database, except for what can be proved from this single state root.
-	 garbage/3]).
+	 garbage/3,
+         integrity_check/2]).
 -record(d, {m, l, empty}).
 db_read(F) ->
     case file:read_file(F) of
@@ -126,7 +127,10 @@ handle_call({root_hash, RootPointer}, _From, D) ->
     {reply, H, D};
 handle_call(cfg, _From, D) ->
     CFG = mtree:cfg(D#d.m),
-    {reply, CFG, D}.
+    {reply, CFG, D};
+handle_call({integrity_check, Root}, _From, D) ->
+    Bool = mtree:integrity_check(Root, D#d.m),
+    {reply, Bool, D}.
 
 cfg(ID) when is_atom(ID) ->
     gen_server:call({global, ids:main_id(ID)}, cfg).
@@ -170,6 +174,8 @@ get_all(Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {get_all, Root})
 delete(Key, Root, ID) -> gen_server:call({global, ids:main_id(ID)}, {delete, Key, Root}).
 garbage(NewRoot, OldRoot, ID) ->%removes new
     gen_server:call({global, ids:main_id(ID)}, {garbage, NewRoot, OldRoot}).
+integrity_check(Root, ID) ->
+    gen_server:call({global, ids:main_id(ID)}, {integrity_check, Root}).
 
 valid_key(Key) ->
     true = is_integer(Key),

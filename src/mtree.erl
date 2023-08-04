@@ -15,6 +15,7 @@
 	 cfg/1,
 	 set_ets/2,
 	 element_get/3,
+         integrity_check/2,
 	 test/0]).
 -record(mt, {cfg, ets, top}).
 	 
@@ -130,6 +131,7 @@ save_to_file(M, Loc) ->
     %io:fwrite(Loc2),
     %io:fwrite("\n"),
     db:save(Loc2, term_to_binary(M#mt{ets = 0})),
+    %file:write_file(Loc2, term_to_binary(term_to_binary(M#mt{ets = 0}))),
     ets:tab2file(M#mt.ets, Loc, [{sync, true}]).
 load_from_file(Loc) ->
     Loc2 = loc2rest(Loc),
@@ -403,6 +405,41 @@ root_hash(Pointer, M) ->
     S = ets_read(M, Pointer),
     stem:hash(S, CFG).
 
+integrity_check(Root, M) ->
+    %for every stem, check that it's root hash is correct, and it records the correct hashes for the children. a depth first scan.
+    Stem = element_get(stem, Root, M),
+    integrity_check2(Stem, M),
+    true.
+integrity_check2(Stem, M) ->
+    io:fwrite("stem integrity check2\n"),
+    Children = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    CFG = M#mt.cfg,
+    Hashes = stem:hashes(Stem),
+    lists:map(fun(C) ->
+                      Type = stem:type(C, Stem),
+                      Pointer = stem:pointer(C, Stem),
+                      Hash = element(C, Hashes),
+                      Hash2 = if
+                                 Type == 0 ->%empty
+                                     <<0:256>>;
+                                  %Pointer == 0 -> %unknown
+                                  %   Hash;
+                                 Type == 1 -> %stem
+                                     Next = element_get(Stem, Pointer, M),
+                                     integrity_check2(Next, M);
+                                 Type == 2 -> %leaf
+                                     Leaf = element_get(leaf, Pointer, M),
+                                     leaf:hash(Leaf, CFG)
+                             end,
+                      if
+                          Hash == Hash2 -> ok;
+                          true ->
+                              io:fwrite({Type, Pointer, Stem}),
+                              1=2
+                      end
+              end, Children),
+    stem:hash(Stem, CFG).  
+
 
 test() ->
     V1 = <<1,1>>,
@@ -415,6 +452,9 @@ test() ->
     Leaf2 = leaf:new(2, V2, Meta, CFG),
     Leaves = [Leaf1, Leaf2],
     {Root, M2} = store_batch(Leaves, 1, M),
+
+    true = integrity_check(Root, M2),
+
     _ = store_batch([leaf:new(3, V1, Meta, CFG),
 		     leaf:new(1, V2, Meta, CFG)], Root, M2),
     Path = leaf:path(Leaf1, CFG),
