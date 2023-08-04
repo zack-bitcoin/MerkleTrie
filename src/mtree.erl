@@ -425,7 +425,7 @@ integrity_check2(Stem, M) ->
                                   %Pointer == 0 -> %unknown
                                   %   Hash;
                                  Type == 1 -> %stem
-                                     Next = element_get(Stem, Pointer, M),
+                                     Next = element_get(stem, Pointer, M),
                                      integrity_check2(Next, M);
                                  Type == 2 -> %leaf
                                      Leaf = element_get(leaf, Pointer, M),
